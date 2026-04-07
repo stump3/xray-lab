@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# init.sh — интерактивная инициализация vars.env для variant-a
+# init.sh — инициализация vars.env для variant-a
 # Использование:
-#   bash scenarios/variant-a/init.sh
-#   make init
+#   bash scenarios/variant-a/init.sh           — интерактивно
+#   bash scenarios/variant-a/init.sh --auto    — без вопросов (все дефолты)
+#   make init                                  — интерактивно
+#   make init-auto                             — без вопросов
 set -euo pipefail
+
+AUTO=0
+[[ "${1:-}" == "--auto" ]] && AUTO=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VARS_FILE="${SCRIPT_DIR}/vars.env"
@@ -104,50 +109,76 @@ main() {
     bold "  xray-lab · variant-a · инициализация"
     echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    # Предупреждение если vars.env уже есть
-    if [[ -f "$VARS_FILE" ]]; then
-        warn "vars.env уже существует — значения будут перезаписаны"
-        printf "  Продолжить? [y/N]: "
-        read -r confirm
-        [[ "${confirm,,}" == "y" ]] || { echo "  Отменено."; exit 0; }
+    if (( AUTO )); then
+        # ── Автоматический режим: никаких вопросов ────────────────────────────
+        info "Режим --auto: используются дефолтные значения"
+
+        # vars.env уже существует — перезаписываем без вопросов
+        [[ -f "$VARS_FILE" ]] && warn "vars.env уже существует — перезапись"
+
+        info "Определяем внешний IP сервера..."
+        SERVER_IP="$(detect_ip)"
+        [[ -n "$SERVER_IP" ]] || { echo "  [✗] Не удалось определить SERVER_IP; укажи вручную через make init"; exit 1; }
+        ok "SERVER_IP: ${SERVER_IP}"
+
+        REALITY_DOMAIN="www.microsoft.com"
+        XHTTP_PATH="$(gen_path)"
+        XRAY_PORT="443"
+        SOCKS_PORT="1080"
+        HTTP_PORT="8118"
+        NGINX_PORT="8080"
+        SUB_PATH="/sub"
+
+        ok "REALITY_DOMAIN: ${REALITY_DOMAIN}"
+        ok "XHTTP_PATH:     ${XHTTP_PATH}"
+        ok "XRAY_PORT:      ${XRAY_PORT}"
+    else
+        # ── Интерактивный режим ───────────────────────────────────────────────
+
+        # Предупреждение если vars.env уже есть
+        if [[ -f "$VARS_FILE" ]]; then
+            warn "vars.env уже существует — значения будут перезаписаны"
+            printf "  Продолжить? [y/N]: "
+            read -r confirm
+            [[ "${confirm,,}" == "y" ]] || { echo "  Отменено."; exit 0; }
+            echo
+        fi
+
+        # SERVER_IP
+        echo
+        info "Определяем внешний IP сервера..."
+        detected_ip="$(detect_ip)"
+        if [[ -n "$detected_ip" ]]; then
+            ok "Обнаружен: ${detected_ip}"
+        else
+            warn "Не удалось определить автоматически"
+        fi
+        SERVER_IP="$(ask "SERVER_IP" "$detected_ip")"
+        [[ -n "$SERVER_IP" ]] || { echo "  [✗] SERVER_IP обязателен"; exit 1; }
+
+        # REALITY_DOMAIN
+        echo
+        info "Reality decoy-домен — публичный сайт без Cloudflare, TLS 1.3 + HTTP/2."
+        dim "  Хорошие варианты: www.microsoft.com, www.apple.com, addons.mozilla.org"
+        REALITY_DOMAIN="$(ask "REALITY_DOMAIN" "www.microsoft.com")"
+
+        # XHTTP_PATH
+        echo
+        generated_path="$(gen_path)"
+        info "XHTTP path — случайный URL-путь. Оставь пустым для автогенерации."
+        XHTTP_PATH="$(ask "XHTTP_PATH" "$generated_path")"
+
+        # Порты
+        echo
+        bold "  Порты (Enter = оставить дефолт):"
+        XRAY_PORT="$(ask   "XRAY_PORT (сервер)"     "443")"
+        SOCKS_PORT="$(ask  "SOCKS_PORT (клиент)"    "1080")"
+        HTTP_PORT="$(ask   "HTTP_PORT (клиент)"     "8118")"
+        NGINX_PORT="$(ask  "NGINX_PORT (sub)"       "8080")"
+        SUB_PATH="$(ask    "SUB_PATH"               "/sub")"
         echo
     fi
 
-    # SERVER_IP
-    echo
-    info "Определяем внешний IP сервера..."
-    detected_ip="$(detect_ip)"
-    if [[ -n "$detected_ip" ]]; then
-        ok "Обнаружен: ${detected_ip}"
-    else
-        warn "Не удалось определить автоматически"
-    fi
-    SERVER_IP="$(ask "SERVER_IP" "$detected_ip")"
-    [[ -n "$SERVER_IP" ]] || { echo "  [✗] SERVER_IP обязателен"; exit 1; }
-
-    # REALITY_DOMAIN
-    echo
-    info "Reality decoy-домен — публичный сайт без Cloudflare, TLS 1.3 + HTTP/2."
-    dim "  Хорошие варианты: www.microsoft.com, www.apple.com, addons.mozilla.org"
-    REALITY_DOMAIN="$(ask "REALITY_DOMAIN" "www.microsoft.com")"
-
-    # XHTTP_PATH
-    echo
-    generated_path="$(gen_path)"
-    info "XHTTP path — случайный URL-путь. Оставь пустым для автогенерации."
-    XHTTP_PATH="$(ask "XHTTP_PATH" "$generated_path")"
-
-    # Порты — спрашиваем все, но дефолты разумные
-    echo
-    bold "  Порты (Enter = оставить дефолт):"
-    XRAY_PORT="$(ask   "XRAY_PORT (сервер)"     "443")"
-    SOCKS_PORT="$(ask  "SOCKS_PORT (клиент)"    "1080")"
-    HTTP_PORT="$(ask   "HTTP_PORT (клиент)"     "8118")"
-    NGINX_PORT="$(ask  "NGINX_PORT (sub)"       "8080")"
-    SUB_PATH="$(ask    "SUB_PATH"               "/sub")"
-
-    # Запись
-    echo
     write_vars \
         "$SERVER_IP" "$REALITY_DOMAIN" "$XRAY_PORT" \
         "$XHTTP_PATH" "$SOCKS_PORT" "$HTTP_PORT" \
@@ -155,9 +186,11 @@ main() {
 
     ok "Записано: ${VARS_FILE}"
     echo
-    bold "  Следующий шаг:"
-    echo "    make keys   ← сгенерировать UUID, x25519 ключи, shortId"
-    echo
+    if (( ! AUTO )); then
+        bold "  Следующий шаг:"
+        echo "    make keys   ← сгенерировать UUID, x25519 ключи, shortId"
+        echo
+    fi
 }
 
 main

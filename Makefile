@@ -7,7 +7,7 @@ SCENARIO := scenarios/$(VAR)
 TOOLS    := tools
 SCRIPTS  := scripts
 
-.PHONY: help install install-no-service update update-check update-auto rollback uninstall uninstall-force init keys up down restart client logs status test test-server test-domain test-proxy link link-qr link-save check-domain
+.PHONY: help install install-no-service update update-check update-auto rollback uninstall uninstall-force reinstall init init-auto quickstart up down restart client logs status test test-server test-domain test-proxy link link-qr link-save check-domain
 
 help:
 	@echo ""
@@ -19,10 +19,13 @@ help:
 	@echo "    make update-check         Проверить версию"
 	@echo "    make update-auto          Обновить без подтверждения (cron)"
 	@echo "    make rollback             Откат к предыдущей версии"
-	@echo "    make uninstall            Полное удаление"
+	@echo "    make uninstall            Полное удаление (интерактивно)"
+	@echo "    make reinstall            Снести + переустановить + up + test (vars.env сохраняется)"
 	@echo ""
 	@echo "  Стенд [VAR=$(VAR)]:"
-	@echo "    make init                 Создать vars.env"
+	@echo "    make init                 Создать vars.env (интерактивно)"
+	@echo "    make init-auto            Создать vars.env без вопросов (все дефолты)"
+	@echo "    make quickstart           init-auto + keys + up + link-qr одной командой"
 	@echo "    make keys                 Сгенерировать ключи"
 	@echo "    make up                   Запустить xray-сервер"
 	@echo "    make down                 Остановить"
@@ -58,8 +61,24 @@ uninstall:
 uninstall-force:
 	sudo bash $(SCRIPTS)/uninstall.sh --force
 
+# Полный сброс с сохранением vars.env → переустановка бинарника → up
+reinstall:
+	sudo bash $(SCRIPTS)/uninstall.sh --force
+	sudo bash $(SCRIPTS)/install.sh
+	@bash $(SCENARIO)/run.sh up
+	@bash $(SCENARIO)/test.sh all
+
 init:
 	@bash $(SCENARIO)/init.sh
+
+init-auto:
+	@bash $(SCENARIO)/init.sh --auto
+
+# Полный запуск без единого вопроса: init-auto → keys → up → link-qr
+quickstart: init-auto
+	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
+	@bash $(SCENARIO)/run.sh up
+	@bash $(TOOLS)/gen-link.sh $(VAR) --qr
 
 keys: init
 	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
