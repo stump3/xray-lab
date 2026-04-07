@@ -19,14 +19,13 @@ Xray  ── VLESS + XHTTP + Reality
 
 ```bash
 # 1. Клонировать
-git clone https://github.com/stump3/xray-lab && cd xray-lab
+git clone https://github.com/YOU/xray-lab && cd xray-lab
 
 # 2. Установить xray-core и создать окружение
 sudo bash scripts/install.sh
 
-# 3. Заполнить переменные
-cp scenarios/variant-a/vars.env.example scenarios/variant-a/vars.env
-nano scenarios/variant-a/vars.env   # SERVER_IP, REALITY_DOMAIN
+# 3. Инициализировать vars.env (IP подтянется автоматически)
+make init
 
 # 4. Сгенерировать ключи
 make keys

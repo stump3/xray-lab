@@ -59,10 +59,7 @@ uninstall-force:
 	sudo bash $(SCRIPTS)/uninstall.sh --force
 
 init:
-	@[[ -f "$(SCENARIO)/vars.env" ]] \
-		&& echo "  vars.env уже существует" \
-		|| { cp "$(SCENARIO)/vars.env.example" "$(SCENARIO)/vars.env"; \
-		     echo "  Создан: $(SCENARIO)/vars.env — заполни SERVER_IP и REALITY_DOMAIN"; }
+	@bash $(SCENARIO)/init.sh
 
 keys: init
 	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
