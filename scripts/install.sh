@@ -57,7 +57,7 @@ detect_arch() {
 install_deps() {
     info "Проверка зависимостей..."
     local need=()
-    for p in curl unzip jq openssl; do
+    for p in curl unzip jq openssl make; do
         command -v "$p" &>/dev/null || need+=("$p")
     done
     command -v qrencode &>/dev/null || warn "qrencode не найден — QR-коды недоступны (опционально)"
