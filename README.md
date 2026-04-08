@@ -43,7 +43,7 @@ make test
 make link-qr
 ```
 
-Или одной командой без вопросов:
+Или одной командой (с интерактивным вводом):
 
 ```bash
 sudo bash scripts/install.sh
@@ -89,7 +89,8 @@ xray-lab/
 | `make init` | Создать `vars.env` (интерактивно) |
 | `make init-auto` | Создать `vars.env` без вопросов (все дефолты) |
 | `make keys` | Сгенерировать ключи → `vars.env` |
-| `make quickstart` | init-auto + keys + up + link-qr одной командой |
+| `make quickstart` | init (интерактивно) + keys + up + link-qr |
+| `make quickstart-auto` | То же, но без единого вопроса |
 | `make up` | Запустить xray-сервер |
 | `make down` | Остановить |
 | `make restart` | Перезапустить |

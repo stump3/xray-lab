@@ -22,12 +22,14 @@ sudo bash scripts/uninstall.sh --force
 # 2. Убедиться, что порт свободен
 ss -tlnp | grep :443         # должно быть пусто
 
-# 3. Удалить vars.env вручную (uninstall его не трогает)
-rm -f scenarios/variant-a/vars.env
+# 3. Удалить репозиторий целиком (вместе с vars.env)
+cd ~
+rm -rf xray-lab
 
-# 4. Поставить заново и получить ссылку одной командой
+# 4. Склонировать заново и установить
+git clone https://github.com/stump3/xray-lab && cd xray-lab
 sudo bash scripts/install.sh
-make quickstart              # init-auto → keys → up → link-qr
+make quickstart              # init (интерактивно) → keys → up → link-qr
 ```
 
 ---
@@ -76,22 +78,16 @@ make rollback
 cat scenarios/variant-a/vars.env        # скопировать содержимое
 
 # На новом сервере:
-git clone https://github.com/YOU/xray-lab && cd xray-lab
+git clone https://github.com/stump3/xray-lab && cd xray-lab
 sudo bash scripts/install.sh
 
-# Восстановить vars.env (вставить содержимое со старого сервера)
-nano scenarios/variant-a/vars.env
-
-# Поправить IP (он у нового сервера другой)
-# Вариант A: отредактировать вручную строку SERVER_IP=
-# Вариант Б: пересоздать vars.env с теми же ключами
+# Вариант А — восстановить старые ключи вручную:
 make init                    # интерактивно — введи новый IP, остальное Enter
-# затем вручную вернуть UUID/ключи из старого vars.env, или:
-make keys                    # сгенерировать новые (тогда обновить клиентские конфиги)
+# затем отредактировать UUID/PRIV_KEY/PUB_KEY/SHORT_ID в vars.env
+# вставив значения со старого сервера
 
-make up
-make test
-make link-qr
+# Вариант Б — новые ключи (нужно обновить клиентские конфиги):
+make quickstart              # init → keys → up → link-qr
 ```
 
 ---
@@ -130,7 +126,7 @@ lsof -i :443
 cat /tmp/xray-lab-variant-a/xray-server.json
 
 # Валидация конфига вручную
-xray -test -config /tmp/xray-lab-variant-a/xray-server.json
+xray run -test -c /tmp/xray-lab-variant-a/xray-server.json
 ```
 
 ---

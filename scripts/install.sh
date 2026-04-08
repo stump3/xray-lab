@@ -81,7 +81,7 @@ detect_existing() {
         read -r -p "  Выбор [1/2/3]: " choice
         case "$choice" in
             1) return 0 ;;          # продолжить обычный install (перезапишет бинарник)
-            2) do_clean_reinstall ;;
+            2) do_clean_reinstall; return 0 ;;
             3) echo "  Отменено."; exit 0 ;;
             *) echo "  Введи 1, 2 или 3" ;;
         esac
@@ -255,18 +255,15 @@ print_next_steps() {
         echo "    make test        ← прогнать тесты"
         echo "    make link-qr     ← ссылка + QR"
     else
-        echo "  1. Заполни переменные:"
-        echo "     cp scenarios/variant-a/vars.env.example scenarios/variant-a/vars.env"
-        echo "     nano scenarios/variant-a/vars.env"
+        echo "  Интерактивный запуск (рекомендуется):"
+        echo "    make quickstart      ← настройка + ключи + up + QR за один шаг"
         echo
-        echo "  2. Сгенерируй ключи:    make keys"
-        echo "  3. Проверь домен:       make check-domain D=www.microsoft.com"
-        echo "  4. Запусти стек:        make up"
-        echo "  5. Прогони тесты:       make test"
-        echo "  6. Получи ссылку:       make link-qr"
-        echo
-        echo "  Или одной командой (все дефолты):"
-        echo "    make quickstart"
+        echo "  Или пошагово:"
+        echo "    make init            ← заполнить vars.env (IP подтянется сам)"
+        echo "    make keys            ← сгенерировать ключи"
+        echo "    make up              ← запустить xray"
+        echo "    make test            ← прогнать тесты"
+        echo "    make link-qr         ← ссылка + QR"
     fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }

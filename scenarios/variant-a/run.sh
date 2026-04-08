@@ -17,7 +17,7 @@ TMP_DIR="/tmp/xray-lab-variant-a"
 
 load_vars() {
     [[ -f "$VARS_FILE" ]] || {
-        echo "ERROR: vars.env не найден — скопируй vars.env.example → vars.env и заполни"
+        echo "ERROR: vars.env не найден — запусти: make init"
         exit 1
     }
     set -a; source "$VARS_FILE"; set +a

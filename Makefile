@@ -7,7 +7,7 @@ SCENARIO := scenarios/$(VAR)
 TOOLS    := tools
 SCRIPTS  := scripts
 
-.PHONY: help install install-no-service update update-check update-auto rollback uninstall uninstall-force reinstall init init-auto quickstart up down restart client logs status test test-server test-domain test-proxy link link-qr link-save check-domain
+.PHONY: help install install-no-service update update-check update-auto rollback uninstall uninstall-force reinstall init init-auto quickstart quickstart-auto up down restart client logs status test test-server test-domain test-proxy link link-qr link-save check-domain
 
 help:
 	@echo ""
@@ -25,7 +25,8 @@ help:
 	@echo "  Стенд [VAR=$(VAR)]:"
 	@echo "    make init                 Создать vars.env (интерактивно)"
 	@echo "    make init-auto            Создать vars.env без вопросов (все дефолты)"
-	@echo "    make quickstart           init-auto + keys + up + link-qr одной командой"
+	@echo "    make quickstart           init (интерактивно) + keys + up + link-qr"
+	@echo "    make quickstart-auto      init-auto + keys + up + link-qr (без вопросов)"
 	@echo "    make keys                 Сгенерировать ключи"
 	@echo "    make up                   Запустить xray-сервер"
 	@echo "    make down                 Остановить"
@@ -73,8 +74,14 @@ init:
 init-auto:
 	@bash $(SCENARIO)/init.sh --auto
 
-# Полный запуск без единого вопроса: init-auto → keys → up → link-qr
-quickstart: init-auto
+# Интерактивный: init (с вопросами) → keys → up → link-qr
+quickstart: init
+	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
+	@bash $(SCENARIO)/run.sh up
+	@bash $(TOOLS)/gen-link.sh $(VAR) --qr
+
+# Без вопросов: init-auto → keys → up → link-qr
+quickstart-auto: init-auto
 	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
 	@bash $(SCENARIO)/run.sh up
 	@bash $(TOOLS)/gen-link.sh $(VAR) --qr
