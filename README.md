@@ -21,7 +21,7 @@ Xray  ── VLESS + XHTTP + Reality
 # 1. Клонировать
 git clone https://github.com/stump3/xray-lab && cd xray-lab
 
-# 2. Установить xray-core и создать окружение
+# 2. Установить xray-core
 sudo bash scripts/install.sh
 
 # 3. Инициализировать vars.env (IP подтянется автоматически)
@@ -41,6 +41,13 @@ make test
 
 # 8. Получить vless:// ссылку + QR
 make link-qr
+```
+
+Или одной командой без вопросов:
+
+```bash
+sudo bash scripts/install.sh
+make quickstart
 ```
 
 ---
@@ -68,7 +75,8 @@ xray-lab/
 ├── docker/
 │   └── compose.yml               ← изолированная среда (dev)
 ├── notes/
-│   └── variant-a.md              ← дневник экспериментов
+│   ├── variant-a.md              ← дневник экспериментов
+│   └── reinstall.md              ← гайд по переустановке
 └── Makefile                      ← единая точка входа
 ```
 
@@ -78,18 +86,27 @@ xray-lab/
 
 | Команда | Действие |
 |---|---|
-| `make init` | Создать `vars.env` из примера |
+| `make init` | Создать `vars.env` (интерактивно) |
+| `make init-auto` | Создать `vars.env` без вопросов (все дефолты) |
 | `make keys` | Сгенерировать ключи → `vars.env` |
+| `make quickstart` | init-auto + keys + up + link-qr одной командой |
 | `make up` | Запустить xray-сервер |
 | `make down` | Остановить |
+| `make restart` | Перезапустить |
 | `make client` | Запустить клиентский xray (SOCKS5 :1080) |
+| `make logs` | Хвост journalctl |
+| `make status` | Статус процессов |
 | `make test` | Все тесты |
 | `make test-server` | Только серверные тесты |
 | `make test-proxy` | Только тест прокси |
 | `make link-qr` | vless:// ссылка + QR-код |
+| `make link-save` | Сохранить ссылку в файл |
 | `make check-domain D=…` | Проверить домен для Reality |
 | `sudo make install` | Установить xray-core |
 | `sudo make update` | Обновить xray-core |
+| `sudo make update-auto` | Обновить без подтверждения (cron) |
+| `sudo make rollback` | Откат к предыдущей версии |
+| `sudo make reinstall` | Чистая переустановка (vars.env сохраняется) |
 | `sudo make uninstall` | Полное удаление |
 
 ---
