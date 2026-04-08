@@ -5,24 +5,29 @@
 #   sudo bash scripts/install.sh
 #   sudo bash scripts/install.sh --no-service   # без systemd (только бинарник)
 #   sudo bash scripts/install.sh --arch arm64   # принудительная архитектура
+#   sudo bash scripts/install.sh --reinstall    # чистая переустановка без вопросов
 set -euo pipefail
 
 XRAY_BIN="/usr/local/bin/xray"
+XRAY_BIN_PREV="/usr/local/bin/xray.prev"
 XRAY_CONF_DIR="/usr/local/etc/xray"
 XRAY_DAT_DIR="/usr/local/share/xray"
 XRAY_LOG_DIR="/var/log/xray"
 SYSTEMD_UNIT="/etc/systemd/system/xray-lab.service"
+TMP_RUN_DIR="/tmp/xray-lab-variant-a"
 RELEASES_URL="https://github.com/XTLS/Xray-core/releases/latest/download"
 RELEASES_API="https://api.github.com/repos/XTLS/Xray-core/releases/latest"
 
 OPT_NO_SERVICE=false
 OPT_ARCH=""
+OPT_REINSTALL=false   # --reinstall: чистая переустановка без вопросов
 
 # ── Разбор аргументов ─────────────────────────────────────────────────────────
 
 for arg in "$@"; do
     case "$arg" in
         --no-service) OPT_NO_SERVICE=true ;;
+        --reinstall)  OPT_REINSTALL=true ;;
         --arch)       shift; OPT_ARCH="$1" ;;
         --arch=*)     OPT_ARCH="${arg#*=}" ;;
     esac
@@ -35,6 +40,70 @@ ok()    { echo "  [✓] $*"; }
 warn()  { echo "  [!] $*" >&2; }
 die()   { echo "  [✗] $*" >&2; exit 1; }
 need_root() { [[ "$(id -u)" -eq 0 ]] || die "Нужен root: sudo bash $0"; }
+
+# ── Обнаружение существующей установки ───────────────────────────────────────
+
+detect_existing() {
+    local found=()
+    [[ -x "$XRAY_BIN" ]]                     && found+=("бинарник $XRAY_BIN")
+    [[ -f "$SYSTEMD_UNIT" ]]                  && found+=("systemd-юнит xray-lab")
+    [[ -d "$XRAY_CONF_DIR" ]]                 && found+=("конфиги $XRAY_CONF_DIR")
+    [[ "${#found[@]}" -eq 0 ]]                && return 0   # чистая система — продолжаем
+
+    echo
+    echo "  ┌─────────────────────────────────────────────────────┐"
+    echo "  │  Обнаружена существующая установка:                  │"
+    for item in "${found[@]}"; do
+        printf "  │    • %-48s│\n" "$item"
+    done
+    if [[ -x "$XRAY_BIN" ]]; then
+        local ver; ver="$("$XRAY_BIN" version 2>/dev/null | awk 'NR==1{print $2}')"
+        printf "  │    Версия: %-42s│\n" "$ver"
+    fi
+    echo "  └─────────────────────────────────────────────────────┘"
+    echo
+
+    if $OPT_REINSTALL; then
+        info "--reinstall: чистая переустановка без вопросов"
+        do_clean_reinstall
+        return
+    fi
+
+    echo "  Что делаем?"
+    echo "    1) Обновить бинарник          — ключи и vars.env не трогаем"
+    echo "    2) Чистая переустановка       — снести всё*, поставить заново"
+    echo "    3) Выйти"
+    echo
+    echo "  * vars.env и notes/ не удаляются"
+    echo
+    local choice
+    while true; do
+        read -r -p "  Выбор [1/2/3]: " choice
+        case "$choice" in
+            1) return 0 ;;          # продолжить обычный install (перезапишет бинарник)
+            2) do_clean_reinstall ;;
+            3) echo "  Отменено."; exit 0 ;;
+            *) echo "  Введи 1, 2 или 3" ;;
+        esac
+    done
+}
+
+# ── Чистая переустановка ──────────────────────────────────────────────────────
+
+do_clean_reinstall() {
+    info "Останавливаем службу..."
+    systemctl stop xray-lab 2>/dev/null    && ok "Служба остановлена" || true
+    systemctl disable xray-lab 2>/dev/null || true
+
+    info "Удаляем старые файлы..."
+    setcap -r "$XRAY_BIN" 2>/dev/null     || true
+    rm -f  "$XRAY_BIN" "$XRAY_BIN_PREV"
+    rm -f  "$SYSTEMD_UNIT"
+    rm -rf "$XRAY_CONF_DIR" "$XRAY_DAT_DIR" "$XRAY_LOG_DIR" "$TMP_RUN_DIR"
+    systemctl daemon-reload 2>/dev/null   || true
+    ok "Старая установка удалена (vars.env и notes/ сохранены)"
+    echo
+}
 
 # ── Определение архитектуры ───────────────────────────────────────────────────
 
@@ -179,15 +248,26 @@ print_next_steps() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  Установка завершена. Следующие шаги:"
     echo
-    echo "  1. Заполни переменные:"
-    echo "     cp scenarios/variant-a/vars.env.example scenarios/variant-a/vars.env"
-    echo "     nano scenarios/variant-a/vars.env"
-    echo
-    echo "  2. Сгенерируй ключи:    make keys"
-    echo "  3. Проверь домен:       make check-domain D=www.microsoft.com"
-    echo "  4. Запусти стек:        make up"
-    echo "  5. Прогони тесты:       make test"
-    echo "  6. Получи ссылку:       make link-qr"
+    if [[ -f "$(dirname "$0")/../scenarios/variant-a/vars.env" ]]; then
+        # vars.env уже есть — скорее всего обновление или переустановка с сохранением
+        echo "  vars.env найден — ключи на месте:"
+        echo "    make up          ← сразу запустить стек"
+        echo "    make test        ← прогнать тесты"
+        echo "    make link-qr     ← ссылка + QR"
+    else
+        echo "  1. Заполни переменные:"
+        echo "     cp scenarios/variant-a/vars.env.example scenarios/variant-a/vars.env"
+        echo "     nano scenarios/variant-a/vars.env"
+        echo
+        echo "  2. Сгенерируй ключи:    make keys"
+        echo "  3. Проверь домен:       make check-domain D=www.microsoft.com"
+        echo "  4. Запусти стек:        make up"
+        echo "  5. Прогони тесты:       make test"
+        echo "  6. Получи ссылку:       make link-qr"
+        echo
+        echo "  Или одной командой (все дефолты):"
+        echo "    make quickstart"
+    fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
@@ -198,6 +278,7 @@ main() {
     echo "  xray-lab installer"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     need_root
+    detect_existing
     install_deps
     install_xray
     set_cap

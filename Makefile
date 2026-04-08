@@ -63,8 +63,7 @@ uninstall-force:
 
 # Полный сброс с сохранением vars.env → переустановка бинарника → up
 reinstall:
-	sudo bash $(SCRIPTS)/uninstall.sh --force
-	sudo bash $(SCRIPTS)/install.sh
+	sudo bash $(SCRIPTS)/install.sh --reinstall
 	@bash $(SCENARIO)/run.sh up
 	@bash $(SCENARIO)/test.sh all
 
