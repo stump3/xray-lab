@@ -16,21 +16,21 @@ EXAMPLE_FILE="${SCRIPT_DIR}/vars.env.example"
 
 # ── Хелперы ───────────────────────────────────────────────────────────────────
 
-bold()  { echo -e "\033[1m$*\033[0m"; }
-dim()   { echo -e "\033[2m$*\033[0m"; }
-ok()    { echo -e "  \033[32m[✓]\033[0m $*"; }
-info()  { echo -e "  \033[34m[·]\033[0m $*"; }
-warn()  { echo -e "  \033[33m[!]\033[0m $*"; }
+bold()  { echo -e "\033[1m$*\033[0m" > /dev/tty; }
+dim()   { echo -e "\033[2m$*\033[0m" > /dev/tty; }
+ok()    { echo -e "  \033[32m[✓]\033[0m $*" > /dev/tty; }
+info()  { echo -e "  \033[34m[·]\033[0m $*" > /dev/tty; }
+warn()  { echo -e "  \033[33m[!]\033[0m $*" > /dev/tty; }
 
 # Спросить значение; $1 — подпись, $2 — дефолт
 ask() {
     local label="$1" default="$2" value
     if [[ -n "$default" ]]; then
-        printf "  %-28s [%s]: " "$label" "$default"
+        printf "  %-28s [%s]: " "$label" "$default" > /dev/tty
     else
-        printf "  %-28s : " "$label"
+        printf "  %-28s : " "$label" > /dev/tty
     fi
-    read -r value
+    read -r value < /dev/tty
     echo "${value:-$default}"
 }
 
@@ -105,9 +105,9 @@ EOF
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
-    echo
+    echo > /dev/tty
     bold "  xray-lab · variant-a · инициализация"
-    echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" > /dev/tty
 
     if (( AUTO )); then
         # ── Автоматический режим: никаких вопросов ────────────────────────────
@@ -118,7 +118,7 @@ main() {
 
         info "Определяем внешний IP сервера..."
         SERVER_IP="$(detect_ip)"
-        [[ -n "$SERVER_IP" ]] || { echo "  [✗] Не удалось определить SERVER_IP; укажи вручную через make init"; exit 1; }
+        [[ -n "$SERVER_IP" ]] || { echo "  [✗] Не удалось определить SERVER_IP; укажи вручную через make init" > /dev/tty; exit 1; }
         ok "SERVER_IP: ${SERVER_IP}"
 
         REALITY_DOMAIN="www.microsoft.com"
@@ -138,14 +138,14 @@ main() {
         # Предупреждение если vars.env уже есть
         if [[ -f "$VARS_FILE" ]]; then
             warn "vars.env уже существует — значения будут перезаписаны"
-            printf "  Продолжить? [y/N]: "
-            read -r confirm
-            [[ "${confirm,,}" == "y" ]] || { echo "  Отменено."; exit 0; }
-            echo
+            printf "  Продолжить? [y/N]: " > /dev/tty
+            read -r confirm < /dev/tty
+            [[ "${confirm,,}" == "y" ]] || { echo "  Отменено." > /dev/tty; exit 0; }
+            echo > /dev/tty
         fi
 
         # SERVER_IP
-        echo
+        echo > /dev/tty
         info "Определяем внешний IP сервера..."
         detected_ip="$(detect_ip)"
         if [[ -n "$detected_ip" ]]; then
@@ -154,29 +154,29 @@ main() {
             warn "Не удалось определить автоматически"
         fi
         SERVER_IP="$(ask "SERVER_IP" "$detected_ip")"
-        [[ -n "$SERVER_IP" ]] || { echo "  [✗] SERVER_IP обязателен"; exit 1; }
+        [[ -n "$SERVER_IP" ]] || { echo "  [✗] SERVER_IP обязателен" > /dev/tty; exit 1; }
 
         # REALITY_DOMAIN
-        echo
+        echo > /dev/tty
         info "Reality decoy-домен — публичный сайт без Cloudflare, TLS 1.3 + HTTP/2."
         dim "  Хорошие варианты: www.microsoft.com, www.apple.com, addons.mozilla.org"
         REALITY_DOMAIN="$(ask "REALITY_DOMAIN" "www.microsoft.com")"
 
         # XHTTP_PATH
-        echo
+        echo > /dev/tty
         generated_path="$(gen_path)"
         info "XHTTP path — случайный URL-путь. Оставь пустым для автогенерации."
         XHTTP_PATH="$(ask "XHTTP_PATH" "$generated_path")"
 
         # Порты
-        echo
+        echo > /dev/tty
         bold "  Порты (Enter = оставить дефолт):"
         XRAY_PORT="$(ask   "XRAY_PORT (сервер)"     "443")"
         SOCKS_PORT="$(ask  "SOCKS_PORT (клиент)"    "1080")"
         HTTP_PORT="$(ask   "HTTP_PORT (клиент)"     "8118")"
         NGINX_PORT="$(ask  "NGINX_PORT (sub)"       "8080")"
         SUB_PATH="$(ask    "SUB_PATH"               "/sub")"
-        echo
+        echo > /dev/tty
     fi
 
     write_vars \
@@ -185,11 +185,11 @@ main() {
         "$NGINX_PORT" "$SUB_PATH"
 
     ok "Записано: ${VARS_FILE}"
-    echo
+    echo > /dev/tty
     if (( ! AUTO )); then
         bold "  Следующий шаг:"
-        echo "    make keys   ← сгенерировать UUID, x25519 ключи, shortId"
-        echo
+        echo "    make keys   ← сгенерировать UUID, x25519 ключи, shortId" > /dev/tty
+        echo > /dev/tty
     fi
 }
 
