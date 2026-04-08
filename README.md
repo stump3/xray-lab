@@ -19,7 +19,7 @@ Xray  ── VLESS + XHTTP + Reality
 
 ```bash
 # 1. Клонировать
-git clone https://github.com/YOU/xray-lab && cd xray-lab
+git clone https://github.com/stump3/xray-lab && cd xray-lab
 
 # 2. Установить xray-core и создать окружение
 sudo bash scripts/install.sh
