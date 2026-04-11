@@ -130,12 +130,16 @@ main() {
         [[ -n "$SERVER_IP" ]] || { echo "  [✗] SERVER_IP обязателен" > /dev/tty; exit 1; }
 
         echo > /dev/tty
-        info "Собственный домен с TLS-сертификатом (для WS+HTTPS части)."
-        dim "  Если домена нет — укажи заглушку, WS-тесты будут пропущены."
+        info "DOMAIN — твой собственный домен, чья A-запись указывает на этот сервер (${detected_ip:-SERVER_IP})."
+        info "Нужен для Nginx HTTPS + WS+TLS части. Сертификат получишь через certbot после init."
+        dim "  Пример: cdn.example.com, vpn.mysite.org"
+        dim "  ⚠  Не вводи чужой домен (github.com, microsoft.com и т.п.) — сертификат не получить."
         DOMAIN="$(ask "DOMAIN" "your-domain.com")"
 
         echo > /dev/tty
-        info "Reality decoy-домен — публичный сайт без Cloudflare, TLS 1.3 + HTTP/2."
+        info "REALITY_DOMAIN — чужой публичный сайт-декой для Reality (не твой)."
+        info "Требования: без Cloudflare, поддерживает TLS 1.3 + HTTP/2."
+        dim "  Хорошие варианты: www.microsoft.com, www.apple.com, addons.mozilla.org"
         REALITY_DOMAIN="$(ask "REALITY_DOMAIN" "www.microsoft.com")"
 
         echo > /dev/tty

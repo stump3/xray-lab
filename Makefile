@@ -89,11 +89,12 @@ init:
 init-auto:
 	@bash $(SCENARIO)/init.sh --auto
 
-# choose → init → keys → up → link-qr (вариант выбирается в UI)
+# choose → init → keys → [certbot] → up → link-qr (вариант выбирается в UI)
 quickstart:
 	@CHOSEN=$$(bash $(TOOLS)/choose-variant.sh) || exit 1; \
 	bash scenarios/$$CHOSEN/init.sh; \
 	bash $(TOOLS)/gen-keys.sh --write $$CHOSEN; \
+	bash $(TOOLS)/maybe-certbot.sh $$CHOSEN; \
 	bash scenarios/$$CHOSEN/run.sh up; \
 	bash $(TOOLS)/gen-link.sh $$CHOSEN --qr
 
