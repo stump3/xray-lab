@@ -140,9 +140,25 @@ main() {
 
         echo > /dev/tty
         bold "  Внутренние порты (Enter = оставить дефолт):"
-        REALITY_INBOUND_PORT="$(ask "REALITY_INBOUND_PORT" "8443")"
-        WS_INBOUND_PORT="$(ask      "WS_INBOUND_PORT"      "9001")"
-        NGINX_HTTPS_PORT="$(ask     "NGINX_HTTPS_PORT"      "7443")"
+        warn ":443 и :80 зарезервированы — введи любой другой порт."
+        while true; do
+            REALITY_INBOUND_PORT="$(ask "REALITY_INBOUND_PORT" "8443")"
+            [[ "$REALITY_INBOUND_PORT" == "443" || "$REALITY_INBOUND_PORT" == "80" ]] \
+                && warn "Нельзя использовать $REALITY_INBOUND_PORT — это публичный порт Nginx stream." \
+                || break
+        done
+        while true; do
+            WS_INBOUND_PORT="$(ask "WS_INBOUND_PORT" "9001")"
+            [[ "$WS_INBOUND_PORT" == "443" || "$WS_INBOUND_PORT" == "80" ]] \
+                && warn "Нельзя использовать $WS_INBOUND_PORT — это публичный порт Nginx stream." \
+                || break
+        done
+        while true; do
+            NGINX_HTTPS_PORT="$(ask "NGINX_HTTPS_PORT" "7443")"
+            [[ "$NGINX_HTTPS_PORT" == "443" || "$NGINX_HTTPS_PORT" == "80" ]] \
+                && warn "Нельзя использовать $NGINX_HTTPS_PORT — это публичный порт Nginx stream." \
+                || break
+        done
 
         echo > /dev/tty
         info "WS path — случайный URL-путь. Оставь пустым для автогенерации."

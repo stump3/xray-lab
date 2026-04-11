@@ -116,11 +116,11 @@ main() {
         key=$(read_key)
         case "$key" in
             $'\033[A' | k)   # стрелка вверх или k
-                (( SEL > 0 )) && (( SEL-- )) || SEL=$(( N - 1 ))
+                SEL=$(( (SEL - 1 + N) % N ))
                 redraw
                 ;;
             $'\033[B' | j)   # стрелка вниз или j
-                (( SEL < N - 1 )) && (( SEL++ )) || SEL=0
+                SEL=$(( (SEL + 1) % N ))
                 redraw
                 ;;
             $'\r' | $'\n' | '')  # Enter

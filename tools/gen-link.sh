@@ -21,7 +21,7 @@ shift  # убираем VAR из аргументов, остаток перед
 SCENARIO_LINK="${REPO_ROOT}/scenarios/${VAR}/gen-link.sh"
 
 # Если у сценария есть собственный gen-link.sh — делегируем
-if [[ -x "$SCENARIO_LINK" ]]; then
+if [[ -f "$SCENARIO_LINK" ]]; then
     exec bash "$SCENARIO_LINK" "$@"
 fi
 
