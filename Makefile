@@ -7,11 +7,19 @@ SCENARIO := scenarios/$(VAR)
 TOOLS    := tools
 SCRIPTS  := scripts
 
-.PHONY: help install install-no-service update update-check update-auto rollback uninstall uninstall-force reinstall init init-auto quickstart quickstart-auto up down restart client logs status test test-server test-domain test-proxy link link-qr link-save check-domain
+.PHONY: help choose select install install-no-service update update-check update-auto rollback uninstall uninstall-force reinstall init init-auto quickstart quickstart-auto keys up down restart client logs status test test-server test-domain test-proxy link link-qr link-save check-domain
 
 help:
 	@echo ""
 	@echo "  xray-lab — управление лабораторным стендом Xray"
+	@echo ""
+	@echo "  Выбор варианта и инициализация:"
+	@echo "    make choose               Выбрать вариант (↑↓ стрелки) → init"
+	@echo "    make quickstart           choose → keys → up → link-qr"
+	@echo "    make quickstart-auto      init-auto → keys → up (VAR=$(VAR), без вопросов)"
+	@echo "    make init                 Инициализировать vars.env для VAR=$(VAR)"
+	@echo "    make init-auto            То же, без вопросов"
+	@echo "    make keys                 Сгенерировать ключи"
 	@echo ""
 	@echo "  Установка и обслуживание xray-core:"
 	@echo "    make install              Установить xray-core"
@@ -23,13 +31,9 @@ help:
 	@echo "    make reinstall            Снести + переустановить + up + test (vars.env сохраняется)"
 	@echo ""
 	@echo "  Стенд [VAR=$(VAR)]:"
-	@echo "    make init                 Создать vars.env (интерактивно)"
-	@echo "    make init-auto            Создать vars.env без вопросов (все дефолты)"
-	@echo "    make quickstart           init (интерактивно) + keys + up + link-qr"
-	@echo "    make quickstart-auto      init-auto + keys + up + link-qr (без вопросов)"
-	@echo "    make keys                 Сгенерировать ключи"
-	@echo "    make up                   Запустить xray-сервер"
+	@echo "    make up                   Запустить стек"
 	@echo "    make down                 Остановить"
+	@echo "    make restart              Перезапустить"
 	@echo "    make client               Клиентский xray (SOCKS5 :1080)"
 	@echo "    make logs / status"
 	@echo ""
@@ -37,6 +41,16 @@ help:
 	@echo "  Ссылки: make link / link-qr / link-save"
 	@echo "  Домен:  make check-domain D=$(D)"
 	@echo ""
+
+# ── Выбор варианта ────────────────────────────────────────────────────────────
+
+# Интерактивный выбор стрелками ↑↓, затем init.sh выбранного варианта.
+# VAR= при этом игнорируется — вариант определяется в UI.
+choose select:
+	@CHOSEN=$$(bash $(TOOLS)/choose-variant.sh) || exit 1; \
+	bash scenarios/$$CHOSEN/init.sh
+
+# ── Установка и обслуживание xray-core ───────────────────────────────────────
 
 install:
 	sudo bash $(SCRIPTS)/install.sh
@@ -62,11 +76,12 @@ uninstall:
 uninstall-force:
 	sudo bash $(SCRIPTS)/uninstall.sh --force
 
-# Полный сброс с сохранением vars.env → переустановка бинарника → up
 reinstall:
 	sudo bash $(SCRIPTS)/install.sh --reinstall
 	@bash $(SCENARIO)/run.sh up
 	@bash $(SCENARIO)/test.sh all
+
+# ── Инициализация ─────────────────────────────────────────────────────────────
 
 init:
 	@bash $(SCENARIO)/init.sh
@@ -74,13 +89,15 @@ init:
 init-auto:
 	@bash $(SCENARIO)/init.sh --auto
 
-# Интерактивный: init (с вопросами) → keys → up → link-qr
-quickstart: init
-	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
-	@bash $(SCENARIO)/run.sh up
-	@bash $(TOOLS)/gen-link.sh $(VAR) --qr
+# choose → init → keys → up → link-qr (вариант выбирается в UI)
+quickstart:
+	@CHOSEN=$$(bash $(TOOLS)/choose-variant.sh) || exit 1; \
+	bash scenarios/$$CHOSEN/init.sh; \
+	bash $(TOOLS)/gen-keys.sh --write $$CHOSEN; \
+	bash scenarios/$$CHOSEN/run.sh up; \
+	bash $(TOOLS)/gen-link.sh $$CHOSEN --qr
 
-# Без вопросов: init-auto → keys → up → link-qr
+# init-auto → keys → up → link-qr (без вопросов, VAR= обязателен)
 quickstart-auto: init-auto
 	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
 	@bash $(SCENARIO)/run.sh up
@@ -88,6 +105,8 @@ quickstart-auto: init-auto
 
 keys: init
 	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
+
+# ── Управление стеком ─────────────────────────────────────────────────────────
 
 up:
 	@bash $(SCENARIO)/run.sh up
@@ -107,6 +126,8 @@ logs:
 status:
 	@bash $(SCENARIO)/run.sh status
 
+# ── Тесты ─────────────────────────────────────────────────────────────────────
+
 test:
 	@bash $(SCENARIO)/test.sh all
 
@@ -119,6 +140,8 @@ test-domain:
 test-proxy:
 	@bash $(SCENARIO)/test.sh proxy
 
+# ── Ссылки ────────────────────────────────────────────────────────────────────
+
 link:
 	@bash $(TOOLS)/gen-link.sh $(VAR)
 
@@ -127,6 +150,8 @@ link-qr:
 
 link-save:
 	@bash $(TOOLS)/gen-link.sh $(VAR) --save
+
+# ── Инструменты ───────────────────────────────────────────────────────────────
 
 check-domain:
 	@bash $(TOOLS)/check-domain.sh $(D)
