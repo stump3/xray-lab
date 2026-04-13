@@ -140,7 +140,15 @@ main() {
         info "REALITY_DOMAIN — чужой публичный сайт-декой для Reality (не твой)."
         info "Требования: без Cloudflare, поддерживает TLS 1.3 + HTTP/2."
         dim "  Хорошие варианты: www.microsoft.com, www.apple.com, addons.mozilla.org"
-        REALITY_DOMAIN="$(ask "REALITY_DOMAIN" "www.microsoft.com")"
+        while true; do
+            REALITY_DOMAIN="$(ask "REALITY_DOMAIN" "www.microsoft.com")"
+            if [[ "$REALITY_DOMAIN" == "$DOMAIN" ]]; then
+                warn "REALITY_DOMAIN не может совпадать с DOMAIN (${DOMAIN}) — это твой сервер."
+                warn "Введи чужой сайт: www.microsoft.com, www.apple.com и т.п."
+            else
+                break
+            fi
+        done
 
         echo > /dev/tty
         bold "  Внутренние порты (Enter = оставить дефолт):"

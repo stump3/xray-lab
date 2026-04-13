@@ -69,16 +69,8 @@ find_active_variants() {
     for v in "${ALL_VARIANTS[@]}"; do
         local vars_file="${REPO_ROOT}/scenarios/${v}/vars.env"
         local pid_file="/tmp/xray-lab-${v}/xray.pid"
-        local tmp_dir="/tmp/xray-lab-${v}"
-        # Вариант активен если:
-        #   1) есть vars.env, или
-        #   2) есть живой pid-файл, или
-        #   3) есть tmp-директория (признак что вариант поднимался), или
-        #   4) pgrep находит xray с конфигом этого варианта в cmdline
-        local has_process=false
-        pgrep -f "xray-lab-${v}/xray-server.json" &>/dev/null && has_process=true
-        if [[ -f "$vars_file" ]] || [[ -f "$pid_file" ]] \
-           || [[ -d "$tmp_dir" ]] || $has_process; then
+        # Вариант активен если есть vars.env ИЛИ живой pid-файл
+        if [[ -f "$vars_file" ]] || [[ -f "$pid_file" ]]; then
             seen+=("$v")
         fi
     done
@@ -88,12 +80,7 @@ find_active_variants() {
 variant_is_running() {
     local v="$1"
     local pid_file="/tmp/xray-lab-${v}/xray.pid"
-    # Проверяем pid-файл
-    if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-        return 0
-    fi
-    # Fallback: ищем по cmdline (процесс мог быть запущен без pid-файла)
-    pgrep -f "xray-lab-${v}/xray-server.json" &>/dev/null
+    [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null
 }
 
 # ── Стартовый экран ───────────────────────────────────────────────────────────
@@ -163,15 +150,6 @@ remove_variants() {
                 pid=$(cat "$pid_file")
                 kill "$pid" 2>/dev/null && ok "${v}: xray остановлен (pid ${pid})" || true
                 rm -f "$pid_file"
-            else
-                # pid-файла нет — процесс мог быть запущен вручную, ищем по cmdline
-                local found_pids
-                found_pids=$(pgrep -f "xray-lab-${v}/xray-server.json" 2>/dev/null || true)
-                if [[ -n "$found_pids" ]]; then
-                    # shellcheck disable=SC2086
-                    kill $found_pids 2>/dev/null \
-                        && ok "${v}: xray остановлен по cmdline (pid ${found_pids})" || true
-                fi
             fi
 
             # Остановить nginx этого варианта
