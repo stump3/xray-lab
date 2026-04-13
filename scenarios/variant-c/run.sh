@@ -44,21 +44,42 @@ render_nginx() {
 
 # ── Утилиты ────────────────────────────────────────────────────────────────────
 
+# release_port PORT — находит ВСЕ процессы на порту и предлагает их остановить
 release_port() {
     local port="$1"
-    local pid proc
-    pid=$(ss -tlnp "sport = :${port}" 2>/dev/null \
-        | awk 'NR>1 { match($0, /pid=([0-9]+)/, a); if (a[1]) print a[1] }' \
-        | head -1)
-    [[ -z "$pid" ]] && return 0
-    proc=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
-    echo "  [!] Порт :${port} занят: ${proc} (pid ${pid})"
-    printf "      Завершить %s? [y/N] " "$proc"
-    read -r reply
+    local pids proc_list
+
+    mapfile -t pids < <(ss -tlnp "sport = :${port}" 2>/dev/null \
+        | awk 'NR>1 { while (match($0, /pid=([0-9]+)/, a)) { print a[1]; $0=substr($0, RSTART+RLENGTH) } }' \
+        | sort -u)
+
+    [[ ${#pids[@]} -eq 0 ]] && return 0
+
+    proc_list=""
+    for pid in "${pids[@]}"; do
+        local name
+        name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
+        proc_list+="${name}(${pid}) "
+    done
+
+    echo "  [!] Порт :${port} занят: ${proc_list}"
+    printf "      Завершить все? [y/N] " > /dev/tty
+    read -r reply < /dev/tty
     if [[ "$reply" =~ ^[Yy]$ ]]; then
-        sudo kill "$pid" 2>/dev/null || true
-        sleep 0.5
-        echo "  [✓] Процесс ${pid} завершён"
+        for pid in "${pids[@]}"; do
+            sudo kill "$pid" 2>/dev/null || true
+        done
+        local waited=0
+        while ss -tlnp "sport = :${port}" 2>/dev/null | grep -q ":${port}"; do
+            sleep 0.3
+            (( waited++ ))
+            if (( waited >= 10 )); then
+                echo "  [✗] Порт :${port} всё ещё занят после ${waited} попыток" >&2
+                echo "      Попробуй: fuser -k ${port}/tcp" >&2
+                exit 1
+            fi
+        done
+        echo "  [✓] Порт :${port} освобождён"
     else
         echo "  [✗] Порт :${port} занят — останови конфликт вручную и повтори" >&2
         exit 1
