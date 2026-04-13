@@ -62,7 +62,7 @@ release_port() {
 
     local waited=0
     while ss -tlnp "sport = :${port}" 2>/dev/null | grep -q ":${port}"; do
-        sleep 0.3; (( waited++ ))
+        sleep 0.3; waited=$(( waited + 1 ))
         if (( waited >= 15 )); then
             echo "  [✗] Порт :${port} не освобождается — попробуй: fuser -k ${port}/tcp" >&2
             return 1
