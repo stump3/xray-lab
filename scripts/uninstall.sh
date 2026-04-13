@@ -65,21 +65,35 @@ confirm() {
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 find_active_variants() {
-    local active=()
+    local seen=()
     for v in "${ALL_VARIANTS[@]}"; do
         local vars_file="${REPO_ROOT}/scenarios/${v}/vars.env"
+        local pid_file="/tmp/xray-lab-${v}/xray.pid"
         local tmp_dir="/tmp/xray-lab-${v}"
-        local pid_file="${tmp_dir}/xray.pid"
-        # Считаем вариант «установленным» если есть vars.env
-        [[ -f "$vars_file" ]] && active+=("$v")
+        # Вариант активен если:
+        #   1) есть vars.env, или
+        #   2) есть живой pid-файл, или
+        #   3) есть tmp-директория (признак что вариант поднимался), или
+        #   4) pgrep находит xray с конфигом этого варианта в cmdline
+        local has_process=false
+        pgrep -f "xray-lab-${v}/xray-server.json" &>/dev/null && has_process=true
+        if [[ -f "$vars_file" ]] || [[ -f "$pid_file" ]] \
+           || [[ -d "$tmp_dir" ]] || $has_process; then
+            seen+=("$v")
+        fi
     done
-    printf '%s\n' "${active[@]}"
+    printf '%s\n' "${seen[@]}"
 }
 
 variant_is_running() {
     local v="$1"
     local pid_file="/tmp/xray-lab-${v}/xray.pid"
-    [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null
+    # Проверяем pid-файл
+    if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+        return 0
+    fi
+    # Fallback: ищем по cmdline (процесс мог быть запущен без pid-файла)
+    pgrep -f "xray-lab-${v}/xray-server.json" &>/dev/null
 }
 
 # ── Стартовый экран ───────────────────────────────────────────────────────────
@@ -149,6 +163,15 @@ remove_variants() {
                 pid=$(cat "$pid_file")
                 kill "$pid" 2>/dev/null && ok "${v}: xray остановлен (pid ${pid})" || true
                 rm -f "$pid_file"
+            else
+                # pid-файла нет — процесс мог быть запущен вручную, ищем по cmdline
+                local found_pids
+                found_pids=$(pgrep -f "xray-lab-${v}/xray-server.json" 2>/dev/null || true)
+                if [[ -n "$found_pids" ]]; then
+                    # shellcheck disable=SC2086
+                    kill $found_pids 2>/dev/null \
+                        && ok "${v}: xray остановлен по cmdline (pid ${found_pids})" || true
+                fi
             fi
 
             # Остановить nginx этого варианта
@@ -196,6 +219,23 @@ stop_service() {
 }
 
 remove_system() {
+    # Финальный sweep — убить любые оставшиеся xray-процессы
+    # (запущенные без pid-файла, или pid-файл уже удалён)
+    local xray_pids
+    xray_pids=$(pgrep -x xray 2>/dev/null || true)
+    if [[ -n "$xray_pids" ]]; then
+        warn "Найдены запущенные процессы xray: ${xray_pids}"
+        if confirm "Завершить все процессы xray?"; then
+            kill $xray_pids 2>/dev/null && ok "Все процессы xray завершены" || true
+        fi
+    fi
+
+    # Очистить оставшиеся tmp-директории всех вариантов
+    for v in "${ALL_VARIANTS[@]}"; do
+        local tmp_dir="/tmp/xray-lab-${v}"
+        [[ -d "$tmp_dir" ]] && rm -rf "$tmp_dir" && ok "Удалено: ${tmp_dir}" || true
+    done
+
     echo
     echo "  ${BOLD}Системные компоненты${RESET}"
     echo "  ──────────────────────────────────────────────"
