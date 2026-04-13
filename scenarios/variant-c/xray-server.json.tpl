@@ -93,7 +93,10 @@
       "streamSettings": {
         "network":    "ws",
         "security":   "none",
-        "wsSettings": { "path": "${VLESS_WS_PATH}" }
+        "wsSettings": {
+          "path": "${VLESS_WS_PATH}",
+          "acceptProxyProtocol": true
+        }
       },
       "sniffing": {
         "enabled":      true,
@@ -119,7 +122,10 @@
       "streamSettings": {
         "network":    "ws",
         "security":   "none",
-        "wsSettings": { "path": "${VMESS_WS_PATH}" }
+        "wsSettings": {
+          "path": "${VMESS_WS_PATH}",
+          "acceptProxyProtocol": true
+        }
       },
       "sniffing": {
         "enabled":      true,
