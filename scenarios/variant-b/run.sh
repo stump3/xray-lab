@@ -42,6 +42,31 @@ render_nginx() {
     echo "  rendered: $(basename "$tpl") → $out"
 }
 
+# ── Утилиты ────────────────────────────────────────────────────────────────────
+
+# release_port PORT — находит процесс на порту и предлагает его остановить
+release_port() {
+    local port="$1"
+    local pid proc
+    # ss: находим PID процесса, занявшего порт
+    pid=$(ss -tlnp "sport = :${port}" 2>/dev/null \
+        | awk 'NR>1 { match($0, /pid=([0-9]+)/, a); if (a[1]) print a[1] }' \
+        | head -1)
+    [[ -z "$pid" ]] && return 0  # порт свободен
+    proc=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
+    echo "  [!] Порт :${port} занят: ${proc} (pid ${pid})"
+    printf "      Завершить %s? [y/N] " "$proc"
+    read -r reply
+    if [[ "$reply" =~ ^[Yy]$ ]]; then
+        sudo kill "$pid" 2>/dev/null || true
+        sleep 0.5
+        echo "  [✓] Процесс ${pid} завершён"
+    else
+        echo "  [✗] Порт :${port} занят — останови конфликт вручную и повтори" >&2
+        exit 1
+    fi
+}
+
 # ── Проверки предусловий ────────────────────────────────────────────────────────
 
 check_prereqs() {
@@ -108,6 +133,10 @@ cmd_up() {
 
     echo "==> Рендер nginx.conf..."
     render_nginx "${SCRIPT_DIR}/nginx.conf.tpl" "${TMP_DIR}/nginx.conf"
+
+    echo "==> Проверка портов..."
+    release_port 443
+    release_port "${NGINX_HTTPS_PORT}"
 
     echo "==> Запуск Nginx (stream :443 → reality+https)..."
     sudo nginx -t -c "${TMP_DIR}/nginx.conf" \
