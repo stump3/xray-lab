@@ -2,6 +2,10 @@
 # Рендерится через envsubst с явным списком переменных (см. run.sh)
 # Nginx-переменные ($host, $http_upgrade и т.п.) в шаблоне экранированы через ${DOLLAR}
 
+# Загрузка динамического модуля stream (Ubuntu/Debian nginx-full)
+# Если stream скомпилирован статически — директива безвредна (nginx игнорирует)
+load_module modules/ngx_stream_module.so;
+
 user www-data;
 worker_processes auto;
 pid /run/nginx-xraylab-b.pid;

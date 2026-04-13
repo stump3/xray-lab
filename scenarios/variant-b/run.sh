@@ -44,9 +44,13 @@ render_nginx() {
 # ── Проверки предусловий ────────────────────────────────────────────────────────
 
 check_prereqs() {
-    # Nginx stream module
-    if ! nginx -V 2>&1 | grep -q "with-stream"; then
-        echo "  [!] Nginx скомпилирован без --with-stream. Установи nginx-full:"
+    # Проверяем наличие модуля stream — статически или динамически
+    local has_stream=0
+    nginx -V 2>&1 | grep -q "with-stream" && has_stream=1
+    [[ -f /usr/lib/nginx/modules/ngx_stream_module.so ]] && has_stream=1
+
+    if (( has_stream == 0 )); then
+        echo "  [!] Nginx без модуля stream. Установи nginx-full:"
         echo "      apt install nginx-full"
         exit 1
     fi
