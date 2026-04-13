@@ -138,8 +138,9 @@ cmd_down() {
     if [[ -f "$npid" ]]; then
         sudo kill "$(cat "$npid")" 2>/dev/null \
             && echo "    [OK] Nginx остановлен"
+        rm -f "$npid"
     else
-        sudo nginx -s stop 2>/dev/null && echo "    [OK] Nginx остановлен" || true
+        echo "    [–] Nginx не запущен (pid-файл не найден)"
     fi
 }
 

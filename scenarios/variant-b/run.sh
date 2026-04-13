@@ -157,8 +157,9 @@ cmd_down() {
     if [[ -f "${nginx_pid}" ]]; then
         sudo kill "$(cat "${nginx_pid}")" 2>/dev/null \
             && echo "    [OK] Nginx остановлен"
+        rm -f "${nginx_pid}"
     else
-        sudo nginx -s stop 2>/dev/null && echo "    [OK] Nginx остановлен" || true
+        echo "    [–] Nginx не запущен (pid-файл не найден)"
     fi
 }
 

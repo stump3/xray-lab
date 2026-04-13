@@ -69,8 +69,16 @@ find_active_variants() {
     for v in "${ALL_VARIANTS[@]}"; do
         local vars_file="${REPO_ROOT}/scenarios/${v}/vars.env"
         local pid_file="/tmp/xray-lab-${v}/xray.pid"
-        # Вариант активен если есть vars.env ИЛИ живой pid-файл
-        if [[ -f "$vars_file" ]] || [[ -f "$pid_file" ]]; then
+        local tmp_dir="/tmp/xray-lab-${v}"
+        # Вариант активен если:
+        #   1) есть vars.env, или
+        #   2) есть живой pid-файл, или
+        #   3) есть tmp-директория (признак что вариант поднимался), или
+        #   4) pgrep находит xray с конфигом этого варианта в cmdline
+        local has_process=false
+        pgrep -f "xray-lab-${v}/xray-server.json" &>/dev/null && has_process=true
+        if [[ -f "$vars_file" ]] || [[ -f "$pid_file" ]] \
+           || [[ -d "$tmp_dir" ]] || $has_process; then
             seen+=("$v")
         fi
     done
@@ -80,7 +88,12 @@ find_active_variants() {
 variant_is_running() {
     local v="$1"
     local pid_file="/tmp/xray-lab-${v}/xray.pid"
-    [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null
+    # Сначала проверяем pid-файл
+    if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+        return 0
+    fi
+    # Fallback: процесс мог быть запущен без pid-файла (вручную, после ребута)
+    pgrep -f "xray-lab-${v}/xray-server.json" &>/dev/null
 }
 
 # ── Стартовый экран ───────────────────────────────────────────────────────────
@@ -150,6 +163,15 @@ remove_variants() {
                 pid=$(cat "$pid_file")
                 kill "$pid" 2>/dev/null && ok "${v}: xray остановлен (pid ${pid})" || true
                 rm -f "$pid_file"
+            else
+                # pid-файла нет — процесс мог быть запущен вручную, ищем по cmdline
+                local found_pids
+                found_pids=$(pgrep -f "xray-lab-${v}/xray-server.json" 2>/dev/null || true)
+                if [[ -n "$found_pids" ]]; then
+                    # shellcheck disable=SC2086
+                    kill $found_pids 2>/dev/null \
+                        && ok "${v}: xray остановлен по cmdline (pid ${found_pids})" || true
+                fi
             fi
 
             # Остановить nginx этого варианта
@@ -237,6 +259,17 @@ remove_system() {
         remove_if_exists "$XRAY_LOG_DIR"  "логи"
     else
         skip "Системные компоненты сохранены"
+    fi
+
+    # Восстановить системный nginx если он установлен и не запущен
+    # (мог быть остановлен во время работы лабораторного стека)
+    if command -v nginx &>/dev/null && systemctl is-enabled --quiet nginx 2>/dev/null; then
+        if ! systemctl is-active --quiet nginx 2>/dev/null; then
+            info "Восстанавливаем системный nginx..."
+            systemctl start nginx \
+                && ok "Системный nginx запущен" \
+                || warn "Не удалось запустить системный nginx — проверь: systemctl status nginx"
+        fi
     fi
 }
 

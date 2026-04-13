@@ -12,6 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VARS_FILE="${SCRIPT_DIR}/vars.env"
 TMP_DIR="/tmp/xray-lab-variant-a"
+export NGINX_PID="${TMP_DIR}/nginx.pid"
 
 # ── Загрузка переменных ────────────────────────────────────────────────────────
 
@@ -79,7 +80,14 @@ cmd_down() {
         sudo kill "$(cat "${TMP_DIR}/xray.pid")" 2>/dev/null && echo "    [OK] xray остановлен"
         rm -f "${TMP_DIR}/xray.pid"
     fi
-    sudo nginx -s stop 2>/dev/null && echo "    [OK] nginx остановлен" || true
+    # Останавливаем только наш nginx-инстанс через pid-файл
+    local nginx_pid="${TMP_DIR}/nginx.pid"
+    if [[ -f "$nginx_pid" ]]; then
+        sudo kill "$(cat "$nginx_pid")" 2>/dev/null && echo "    [OK] nginx остановлен"
+        rm -f "$nginx_pid"
+    else
+        echo "    [–] nginx не запущен (pid-файл не найден)"
+    fi
 }
 
 cmd_client() {

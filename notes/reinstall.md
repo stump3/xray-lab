@@ -39,18 +39,24 @@ make quickstart              # init (интерактивно) → keys → up �
 `vars.env` (UUID, ключи, IP) остаётся нетронутым — клиентские конфиги менять не нужно.
 
 ```bash
-# 1. Остановить и снести бинарник, сохранить vars.env
-sudo bash scripts/uninstall.sh --force   # vars.env не удаляется
+# 1. Остановить все варианты
+make down                            # variant-a
+make down VAR=variant-b              # если использовался variant-b
+# ... и т.д. для других вариантов
 
-# 2. Переустановить xray-core
+# 2. Снести бинарник (vars.env не удаляется)
+sudo bash scripts/uninstall.sh --force
+
+# 3. Переустановить xray-core
 sudo bash scripts/install.sh
 
-# 3. Поднять стек с теми же ключами
-make up
+# 4. Поднять стек с теми же ключами
+make up                              # variant-a (дефолт)
+make up VAR=variant-b                # если нужен variant-b
 
-# 4. Проверить
+# 5. Проверить
 make test
-make link-qr                 # ссылка та же, что и до переустановки
+make link-qr                         # ссылка та же, что и до переустановки
 ```
 
 ---
@@ -101,13 +107,18 @@ make quickstart              # init → keys → up → link-qr
 | `/usr/local/etc/xray/` | ✅ да | рабочие конфиги (рендер из шаблонов) |
 | `/usr/local/share/xray/` | ✅ да | геобазы geoip.dat / geosite.dat |
 | `/var/log/xray/` | ✅ да | логи |
-| `/tmp/xray-lab-variant-a/` | ✅ да | временные рендеренные конфиги |
+| `/tmp/xray-lab-variant-a/` | ✅ да | временные файлы variant-a |
+| `/tmp/xray-lab-variant-b/` | ✅ да | временные файлы variant-b |
+| `/tmp/xray-lab-variant-c/` | ✅ да | временные файлы variant-c (+ unix socket) |
+| `/tmp/xray-lab-variant-d/` | ✅ да | временные файлы variant-d |
 | `/etc/systemd/system/xray-lab.service` | ✅ да | systemd-юнит |
-| `scenarios/variant-a/vars.env` | ❌ нет | твои секреты |
+| `scenarios/*/vars.env` | ❌ нет | UUID, ключи — спрашивается отдельно для каждого варианта |
 | `notes/` | ❌ нет | дневник экспериментов |
-| `scenarios/variant-a/vars.env.example` | ❌ нет | шаблон |
+| `scenarios/*/vars.env.example` | ❌ нет | шаблоны |
 
 > `--keep-bin` сохраняет бинарник xray, удаляет всё остальное.
+
+> После удаления `uninstall.sh` автоматически восстанавливает системный nginx (`systemctl start nginx`), если он был установлен и включён в автозапуск.
 
 ---
 
@@ -115,8 +126,10 @@ make quickstart              # init → keys → up → link-qr
 
 ```bash
 make status                  # состояние процессов
-make logs                    # хвост journalctl
-make test-server             # TLS handshake с decoy domain
+make status VAR=variant-b    # для конкретного варианта
+make logs                    # хвост логов (variant-a)
+make logs VAR=variant-b      # логи variant-b
+make test-server             # порты и конфиг
 
 # Проверить, занят ли порт другим процессом
 ss -tlnp | grep :443
@@ -124,9 +137,11 @@ lsof -i :443
 
 # Посмотреть рабочий конфиг (после make up)
 cat /tmp/xray-lab-variant-a/xray-server.json
+cat /tmp/xray-lab-variant-b/xray-server.json
 
 # Валидация конфига вручную
 xray run -test -c /tmp/xray-lab-variant-a/xray-server.json
+xray run -test -c /tmp/xray-lab-variant-b/xray-server.json
 ```
 
 ---
@@ -138,6 +153,6 @@ xray run -test -c /tmp/xray-lab-variant-a/xray-server.json
 | `xray: command not found` | `sudo bash scripts/install.sh` |
 | Порт занят после `make up` | `make down`, затем `make up` |
 | Конфиг не рендерится | проверить `vars.env` на незаполненные плейсхолдеры |
-| `xray -test` падает с ошибкой JSON | откатить конфиг: `make down && make up` |
+| `xray run -test -c ...` падает с ошибкой JSON | откатить конфиг: `make down && make up` |
 | Новая версия xray ломает конфиг | `make rollback` |
 | Ключи скомпрометированы | Сценарий 1 (полный сброс) |

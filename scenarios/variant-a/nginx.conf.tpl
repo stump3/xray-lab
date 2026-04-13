@@ -2,6 +2,8 @@
 # Xray сидит на 443, Nginx — на NGINX_PORT (по умолчанию 8080)
 # Меняется одним числом: переменная NGINX_PORT в vars.env
 
+pid ${NGINX_PID};
+
 server {
     listen      ${NGINX_PORT};
     server_name _;
