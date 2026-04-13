@@ -62,6 +62,8 @@ cmd_up() {
     render_json  "${SCRIPT_DIR}/xray-server.json.tpl" "${TMP_DIR}/xray-server.json"
     render_nginx "${SCRIPT_DIR}/nginx.conf.tpl"       "${TMP_DIR}/nginx.conf"
 
+    mkdir -p /var/log/xray
+
     echo "==> Валидация xray-server.json..."
     xray run -test -c "${TMP_DIR}/xray-server.json" \
         && echo "    [OK] конфиг валиден" \

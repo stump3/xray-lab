@@ -8,7 +8,7 @@ load_module modules/ngx_stream_module.so;
 
 user www-data;
 worker_processes auto;
-pid /run/nginx-xraylab-b.pid;
+pid ${NGINX_PID};
 
 events {
     worker_connections 1024;

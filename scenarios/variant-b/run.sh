@@ -23,6 +23,7 @@ load_vars() {
     set -a; source "$VARS_FILE"; set +a
     # DOLLAR нужен для nginx.conf.tpl (экранирование nginx-переменных)
     export DOLLAR='$'
+    export NGINX_PID="${TMP_DIR}/nginx.pid"
 }
 
 # ── Рендер шаблона ─────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ render_json() {
 render_nginx() {
     local tpl="$1" out="$2"
     # Явный список переменных — nginx-переменные ($host и т.п.) не затрагиваются
-    envsubst '${DOMAIN}${REALITY_INBOUND_PORT}${WS_INBOUND_PORT}${NGINX_HTTPS_PORT}${WS_PATH}${CERT_FILE}${KEY_FILE}${SUB_PATH}${DOLLAR}' \
+    envsubst '${DOMAIN}${REALITY_INBOUND_PORT}${WS_INBOUND_PORT}${NGINX_HTTPS_PORT}${WS_PATH}${CERT_FILE}${KEY_FILE}${SUB_PATH}${NGINX_PID}${DOLLAR}' \
         < "$tpl" > "$out"
     echo "  rendered: $(basename "$tpl") → $out"
 }
@@ -76,6 +77,9 @@ cmd_up() {
 
     echo "==> Рендер конфигов..."
     render_json  "${SCRIPT_DIR}/xray-server.json.tpl" "${TMP_DIR}/xray-server.json"
+
+    # Директория логов — создаём если удалена (например после uninstall)
+    mkdir -p /var/log/xray
 
     echo "==> Валидация xray-server.json..."
     xray run -test -c "${TMP_DIR}/xray-server.json" \

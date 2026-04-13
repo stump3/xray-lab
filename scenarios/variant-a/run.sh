@@ -41,6 +41,8 @@ cmd_up() {
     render "${SCRIPT_DIR}/xray-server.json.tpl" "${TMP_DIR}/xray-server.json"
 
     # Валидация конфига до запуска
+    mkdir -p /var/log/xray
+
     echo "==> Валидация xray-server.json..."
     xray run -test -c "${TMP_DIR}/xray-server.json" \
         && echo "    [OK] конфиг валиден" \
