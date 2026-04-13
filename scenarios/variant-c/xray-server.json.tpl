@@ -39,8 +39,7 @@
           {
             "id":    "${UUID_VLESS}",
             "email": "user-vless",
-            "level": 0,
-            "flow":  "xtls-rprx-vision"
+            "level": 0
           }
         ],
         "decryption": "none",
@@ -71,7 +70,7 @@
               "keyFile":         "${KEY_FILE}"
             }
           ],
-          "alpn": ["h2", "http/1.1"]
+          "alpn": ["http/1.1"]
         }
       }
     },

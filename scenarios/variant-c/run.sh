@@ -21,7 +21,6 @@ load_vars() {
         exit 1
     }
     set -a; source "$VARS_FILE"; set +a
-    # DOLLAR — для экранирования nginx-переменных в шаблоне
     export DOLLAR='$'
     export NGINX_PID="${TMP_DIR}/nginx.pid"
 }
@@ -36,68 +35,61 @@ render_json() {
 
 render_nginx() {
     local tpl="$1" out="$2"
-    # Явный список — nginx-переменные ($uri и т.п.) не затрагиваются
     envsubst '${DOMAIN}${H1_SOCK}${SUB_PATH}${DOLLAR}${NGINX_PID}' \
         < "$tpl" > "$out"
     echo "  rendered: $(basename "$tpl") → $out"
 }
 
-# ── Утилиты ────────────────────────────────────────────────────────────────────
+# ── release_port PORT [--silent] ───────────────────────────────────────────────
+# Завершает ВСЕ процессы на порту без интерактивных вопросов.
+# cmd_up: выводит предупреждение и завершает автоматически.
+# cmd_down: тихий режим (--silent) — просто чистит без вывода.
 
-# release_port PORT — находит ВСЕ процессы на порту и предлагает их остановить
 release_port() {
-    local port="$1"
-    local pids proc_list
+    local port="$1" silent=0
+    [[ "${2:-}" == "--silent" ]] && silent=1
 
+    local pids
     mapfile -t pids < <(ss -tlnp "sport = :${port}" 2>/dev/null \
         | awk 'NR>1 { while (match($0, /pid=([0-9]+)/, a)) { print a[1]; $0=substr($0, RSTART+RLENGTH) } }' \
         | sort -u)
 
     [[ ${#pids[@]} -eq 0 ]] && return 0
 
-    proc_list=""
+    if (( silent == 0 )); then
+        local proc_list=""
+        for pid in "${pids[@]}"; do
+            local name; name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
+            proc_list+="${name}(${pid}) "
+        done
+        echo "  [!] Порт :${port} занят (${proc_list}) — завершаем автоматически"
+    fi
+
     for pid in "${pids[@]}"; do
-        local name
-        name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
-        proc_list+="${name}(${pid}) "
+        sudo kill "$pid" 2>/dev/null || true
     done
 
-    echo "  [!] Порт :${port} занят: ${proc_list}"
-    printf "      Завершить все? [y/N] " > /dev/tty
-    read -r reply < /dev/tty
-    if [[ "$reply" =~ ^[Yy]$ ]]; then
-        for pid in "${pids[@]}"; do
-            sudo kill "$pid" 2>/dev/null || true
-        done
-        local waited=0
-        while ss -tlnp "sport = :${port}" 2>/dev/null | grep -q ":${port}"; do
-            sleep 0.3
-            (( waited++ ))
-            if (( waited >= 10 )); then
-                echo "  [✗] Порт :${port} всё ещё занят после ${waited} попыток" >&2
-                echo "      Попробуй: fuser -k ${port}/tcp" >&2
-                exit 1
-            fi
-        done
-        echo "  [✓] Порт :${port} освобождён"
-    else
-        echo "  [✗] Порт :${port} занят — останови конфликт вручную и повтори" >&2
-        exit 1
-    fi
+    local waited=0
+    while ss -tlnp "sport = :${port}" 2>/dev/null | grep -q ":${port}"; do
+        sleep 0.3; (( waited++ ))
+        if (( waited >= 15 )); then
+            echo "  [✗] Порт :${port} не освобождается — попробуй: fuser -k ${port}/tcp" >&2
+            return 1
+        fi
+    done
+    (( silent == 0 )) && echo "  [✓] Порт :${port} освобождён"
+    return 0
 }
 
 # ── Проверки предусловий ───────────────────────────────────────────────────────
 
 check_prereqs() {
-    # TLS-сертификат обязателен для Variant C
     if [[ ! -f "${CERT_FILE:-}" ]]; then
         echo "  [✗] TLS-сертификат не найден: ${CERT_FILE:-не задан}"
         echo "      Variant C требует сертификат. Получить:"
         echo "      certbot certonly --standalone -d ${DOMAIN:-your-domain.com}"
         exit 1
     fi
-
-    # /dev/shm должен быть доступен (tmpfs для unix socket)
     [[ -d /dev/shm ]] || {
         echo "  [✗] /dev/shm недоступен — unix socket не создать"
         exit 1
@@ -130,7 +122,6 @@ cmd_up() {
         && echo "    [OK] Nginx запущен (unix:${H1_SOCK})" \
         || { echo "    [FAIL] Nginx не стартовал"; exit 1; }
 
-    # Ждём появления unix socket перед запуском Xray (fallback пишет туда сразу)
     local retries=0
     while [[ ! -S "${H1_SOCK}" ]] && (( retries < 10 )); do
         sleep 0.5; (( retries++ ))
@@ -141,8 +132,10 @@ cmd_up() {
     fi
     echo "    [OK] unix socket готов: ${H1_SOCK}"
 
-    echo "==> Запуск Xray (:443, TLS, fallbacks → WS inbounds + unix socket)..."
+    # Освобождаем :443 автоматически (без вопросов) перед запуском Xray
     release_port 443
+
+    echo "==> Запуск Xray (:443, TLS, fallbacks → WS inbounds + unix socket)..."
     sudo xray run -c "${TMP_DIR}/xray-server.json" &> "${TMP_DIR}/xray.log" &
     echo $! > "${TMP_DIR}/xray.pid"
     sleep 1
@@ -165,19 +158,24 @@ cmd_up() {
 
 cmd_down() {
     echo "==> Остановка..."
+
+    # Останавливаем по pid-файлу
     if [[ -f "${TMP_DIR}/xray.pid" ]]; then
         sudo kill "$(cat "${TMP_DIR}/xray.pid")" 2>/dev/null \
             && echo "    [OK] Xray остановлен"
         rm -f "${TMP_DIR}/xray.pid"
     fi
+
     local npid="${TMP_DIR}/nginx.pid"
     if [[ -f "$npid" ]]; then
         sudo kill "$(cat "$npid")" 2>/dev/null \
             && echo "    [OK] Nginx остановлен"
         rm -f "$npid"
-    else
-        echo "    [–] Nginx не запущен (pid-файл не найден)"
     fi
+
+    # Финальная чистка — убиваем всё что ещё держит :443 (тихо)
+    release_port 443 --silent
+
     # Чистим unix socket
     rm -f "${H1_SOCK:-/dev/shm/xraylab-c-h1.sock}"
 }
