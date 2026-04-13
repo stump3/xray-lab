@@ -113,6 +113,7 @@ cmd_up() {
 
     # Nginx стартует первым: Xray fallback будет писать на :NGINX_DECOY_PORT сразу
     echo "==> Запуск Nginx (HTTP :80 redirect + decoy 127.0.0.1:${NGINX_DECOY_PORT})..."
+    release_port 80
     sudo nginx -t -c "${TMP_DIR}/nginx.conf" \
         && sudo nginx -c "${TMP_DIR}/nginx.conf" \
         && echo "    [OK] Nginx запущен" \
@@ -163,8 +164,9 @@ cmd_down() {
         echo "    [–] Nginx не запущен (pid-файл не найден)"
     fi
 
-    # Финальная чистка — убиваем всё что ещё держит :443 (тихо)
+    # Финальная чистка — убиваем всё что ещё держит порты (тихо)
     release_port 443 --silent
+    release_port 80 --silent
 }
 
 cmd_client() {

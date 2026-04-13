@@ -32,6 +32,46 @@ render() {
     echo "  rendered: $tpl → $out"
 }
 
+# ── release_port PORT [--silent] ───────────────────────────────────────────────
+# Завершает ВСЕ процессы на порту без интерактивных вопросов.
+# --silent: тихий режим для cmd_down.
+
+release_port() {
+    local port="$1" silent=0
+    [[ "${2:-}" == "--silent" ]] && silent=1
+
+    local pids
+    mapfile -t pids < <(ss -tlnp "sport = :${port}" 2>/dev/null \
+        | awk 'NR>1 { while (match($0, /pid=([0-9]+)/, a)) { print a[1]; $0=substr($0, RSTART+RLENGTH) } }' \
+        | sort -u)
+
+    [[ ${#pids[@]} -eq 0 ]] && return 0
+
+    if (( silent == 0 )); then
+        local proc_list=""
+        for pid in "${pids[@]}"; do
+            local name; name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "?")
+            proc_list+="${name}(${pid}) "
+        done
+        echo "  [!] Порт :${port} занят (${proc_list}) — завершаем автоматически"
+    fi
+
+    for pid in "${pids[@]}"; do
+        sudo kill "$pid" 2>/dev/null || true
+    done
+
+    local waited=0
+    while ss -tlnp "sport = :${port}" 2>/dev/null | grep -q ":${port}"; do
+        sleep 0.3; (( waited++ ))
+        if (( waited >= 15 )); then
+            echo "  [✗] Порт :${port} не освобождается — попробуй: fuser -k ${port}/tcp" >&2
+            return 1
+        fi
+    done
+    (( silent == 0 )) && echo "  [✓] Порт :${port} освобождён"
+    return 0
+}
+
 # ── Команды ───────────────────────────────────────────────────────────────────
 
 cmd_up() {
@@ -50,6 +90,7 @@ cmd_up() {
         || { echo "    [FAIL] невалидный конфиг"; exit 1; }
 
     echo "==> Запуск xray (сервер)..."
+    release_port 443
     # В тестовой среде запускаем от текущего пользователя, не через systemd
     sudo xray run -c "${TMP_DIR}/xray-server.json" &> "${TMP_DIR}/xray.log" &
     echo $! > "${TMP_DIR}/xray.pid"
@@ -66,6 +107,7 @@ cmd_up() {
     # Nginx (опционально — только если установлен)
     if command -v nginx &>/dev/null; then
         render "${SCRIPT_DIR}/nginx.conf.tpl" "${TMP_DIR}/nginx.conf"
+        release_port "${NGINX_PORT:-8080}"
         sudo nginx -t -c "${TMP_DIR}/nginx.conf" \
             && sudo nginx -c "${TMP_DIR}/nginx.conf" \
             && echo "    [OK] nginx запущен на порту ${NGINX_PORT:-8080}"
@@ -88,6 +130,10 @@ cmd_down() {
     else
         echo "    [–] nginx не запущен (pid-файл не найден)"
     fi
+
+    # Финальная чистка — убиваем всё что ещё держит порты (тихо)
+    release_port 443 --silent
+    release_port "${NGINX_PORT:-8080}" --silent
 }
 
 cmd_client() {

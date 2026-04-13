@@ -141,8 +141,9 @@ cmd_up() {
     echo "==> Рендер nginx.conf..."
     render_nginx "${SCRIPT_DIR}/nginx.conf.tpl" "${TMP_DIR}/nginx.conf"
 
-    # Освобождаем :443 автоматически (без вопросов) перед запуском Nginx
+    # Освобождаем порты перед запуском Nginx
     release_port 443
+    release_port "${NGINX_HTTPS_PORT}"
 
     echo "==> Запуск Nginx (stream :443 → reality+https)..."
     sudo nginx -t -c "${TMP_DIR}/nginx.conf" \
@@ -167,8 +168,9 @@ cmd_down() {
         rm -f "$npid"
     fi
 
-    # Финальная чистка — убиваем всё что ещё держит :443 (тихо)
+    # Финальная чистка — убиваем всё что ещё держит порты (тихо)
     release_port 443 --silent
+    release_port "${NGINX_HTTPS_PORT}" --silent
 }
 
 cmd_client() {

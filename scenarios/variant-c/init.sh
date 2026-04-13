@@ -128,11 +128,17 @@ main() {
 
     ok "Записано: ${VARS_FILE}"
     echo > /dev/tty
-    bold "  Следующие шаги:"
-    echo "    make keys VAR=variant-c           ← сгенерировать UUID_VLESS, UUID_VMESS" > /dev/tty
-    echo "    certbot certonly -d \$DOMAIN       ← получить TLS сертификат" > /dev/tty
-    echo "    make up VAR=variant-c              ← запустить стек" > /dev/tty
-    echo > /dev/tty
+    if (( ! AUTO )); then
+        if [[ "${XRAY_QUICKSTART:-0}" == "1" ]]; then
+            echo "  ↓ quickstart продолжает: keys → certbot → up → QR" > /dev/tty
+        else
+            bold "  Следующие шаги:"
+            echo "    make keys VAR=variant-c           ← сгенерировать UUID_VLESS, UUID_VMESS" > /dev/tty
+            echo "    certbot certonly -d \$DOMAIN       ← получить TLS сертификат" > /dev/tty
+            echo "    make up VAR=variant-c              ← запустить стек" > /dev/tty
+        fi
+        echo > /dev/tty
+    fi
 }
 
 main

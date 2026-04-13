@@ -187,8 +187,12 @@ main() {
     ok "Записано: ${VARS_FILE}"
     echo > /dev/tty
     if (( ! AUTO )); then
-        bold "  Следующий шаг:"
-        echo "    make keys   ← сгенерировать UUID, x25519 ключи, shortId" > /dev/tty
+        if [[ "${XRAY_QUICKSTART:-0}" == "1" ]]; then
+            echo "  ↓ quickstart продолжает: keys → up → QR" > /dev/tty
+        else
+            bold "  Следующий шаг:"
+            echo "    make keys   ← сгенерировать UUID, x25519 ключи, shortId" > /dev/tty
+        fi
         echo > /dev/tty
     fi
 }
