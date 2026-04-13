@@ -16,6 +16,7 @@ events {
 
 # ── Stream: читает SNI до TLS handshake, маршрутизирует TCP-поток ─────────────
 stream {
+    map_hash_bucket_size 64;
     map ${DOLLAR}ssl_preread_server_name ${DOLLAR}backend {
         ${DOMAIN}    nginx_https;
         default      xray_reality;
