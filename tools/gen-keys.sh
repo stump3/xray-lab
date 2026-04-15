@@ -4,7 +4,8 @@
 #   ./tools/gen-keys.sh                    — вывод всех значений на экран
 #   ./tools/gen-keys.sh --write variant-a  — записать в scenarios/variant-a/vars.env
 #   ./tools/gen-keys.sh --write variant-b  — UUID_REALITY + UUID_WS + x25519
-#   ./tools/gen-keys.sh --write variant-c  — UUID_VLESS + UUID_VMESS (без x25519)
+#   ./tools/gen-keys.sh --write variant-c   — UUID_VLESS + UUID_VMESS (без x25519)
+#   ./tools/gen-keys.sh --write variant-c2  — UUID + TR_PASSWORD + SS_PASSWORD
 #   ./tools/gen-keys.sh --write variant-d  — только UUID (TLS, не Reality)
 #
 # Имена переменных в vars.env по вариантам:
@@ -73,6 +74,17 @@ if [[ "${1:-}" == "--write" && -n "${2:-}" ]]; then
                 "$VARS"
             echo "  variant-c: UUID_VLESS, UUID_VMESS → $VARS"
             echo "  (x25519 не нужен — Reality не используется)"
+            ;;
+        variant-c2)
+            TR_PASS="$(openssl rand -hex 16)"
+            SS_PASS="$(openssl rand -base64 16 | tr -d '\n')"
+            sed -i \
+                -e "s|^UUID=.*|UUID=${UUID_1}|" \
+                -e "s|^TR_PASSWORD=.*|TR_PASSWORD=${TR_PASS}|" \
+                -e "s|^SS_PASSWORD=.*|SS_PASSWORD=${SS_PASS}|" \
+                "$VARS"
+            echo "  variant-c2: UUID, TR_PASSWORD, SS_PASSWORD → $VARS"
+            echo "  SS_PASSWORD: 16-byte base64 key (2022-blake3-aes-128-gcm)"
             ;;
         variant-d)
             sed -i \

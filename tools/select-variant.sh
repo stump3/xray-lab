@@ -11,23 +11,26 @@ set -euo pipefail
 # ── Описания вариантов ─────────────────────────────────────────────────────────
 
 declare -a NAMES=(
-    "Variant A — VLESS + XHTTP + Reality"
-    "Variant B — Nginx stream SNI routing"
-    "Variant C — Xray native fallbacks (All-in-One)"
-    "Variant D — Self-SNI: собственный decoy-сайт"
+    "Variant A  — VLESS + XHTTP + Reality"
+    "Variant B  — Nginx stream SNI routing"
+    "Variant C  — Xray native fallbacks (All-in-One)"
+    "Variant C2 — All-in-One, 17 протоколов"
+    "Variant D  — Self-SNI: собственный decoy-сайт"
 )
 
 declare -a KEYS=(
     "variant-a"
     "variant-b"
     "variant-c"
+    "variant-c2"
     "variant-d"
 )
 
 declare -a DESCS=(
-    "Xray напрямую на :443. Домен и сертификат не нужны.\nMаксимальная скрытность — Reality с decoy microsoft.com."
+    "Xray напрямую на :443. Домен и сертификат не нужны.\nМаксимальная скрытность — Reality с decoy microsoft.com."
     "Nginx stream на :443 читает SNI и роутит: Reality-клиенты → Xray,\nосвоенный домен → Nginx HTTPS + WS. Нужен домен и сертификат."
     "Xray на :443 терминирует TLS и раздаёт протоколы через fallbacks:\nVLESS+WS, VMess+WS, decoy-сайт. Reality недоступна. Нужен домен."
+    "Полный All-in-One: VLESS+Vision+TLS → fallbacks → 17 протоколов.\nVLESS/VMess/Trojan/SS × TCP/WS/gRPC/H2. Нужен wildcard сертификат."
     "Xray на :443 с собственным сертификатом. Decoy — настоящий сайт\nна том же IP. Домен, сертификат и IP согласованы. Reality недоступна."
 )
 
@@ -35,6 +38,7 @@ declare -a REQS=(
     "Без домена  ·  Без сертификата  ·  Низкая сложность"
     "Домен + сертификат  ·  nginx-full (stream)  ·  Средняя сложность"
     "Домен + сертификат  ·  /dev/shm  ·  Высокая сложность"
+    "Wildcard сертификат  ·  /dev/shm  ·  Nginx http_v2  ·  Очень высокая сложность"
     "Домен + сертификат  ·  Низкая сложность"
 )
 

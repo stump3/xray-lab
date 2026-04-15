@@ -50,7 +50,7 @@
         "security": "reality",
         "realitySettings": {
           "show":        false,
-          "dest":        "${REALITY_DOMAIN}:443",
+          "target":      "${REALITY_DOMAIN}:443",
           "serverNames": ["${REALITY_DOMAIN}"],
           "privateKey":  "${PRIV_KEY}",
           "shortIds":    ["${SHORT_ID}", ""]
