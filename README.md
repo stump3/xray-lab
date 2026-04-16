@@ -263,7 +263,7 @@ make link-qr VAR=variant-c2    # выводит все 17 ссылок
 | `SS_METHOD` | `2022-blake3-aes-128-gcm` |
 | `DOMAIN` | Основной домен |
 | `VLESS_WS_PATH` … `SS_TC_PATH` | 7 случайных путей (генерируются автоматически) |
-| `TROJAN_GRPC_PORT` … `SS_H2_PORT` | 7 внутренних портов (3001–4003) |
+| `TROJAN_GRPC_PORT` … `SS_XHTTP_PORT` | 7 внутренних портов (3001–4003) |
 | `H1_SOCK` / `H2C_SOCK` | Unix sockets (`/dev/shm/xraylab-c2-*.sock`) |
 
 ### Subscription links

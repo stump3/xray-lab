@@ -55,7 +55,7 @@ test_server() {
     # SS sub-inbounds
     check_port "${SS_WS_PORT:-4001}" "SS WebSocket"
     check_port "${SS_TC_PORT:-4002}" "SS TCP obfs"
-    check_port "${SS_H2_PORT:-4003}" "SS H2"
+    check_port "${SS_XHTTP_PORT:-4003}" "SS XHTTP"
 
     # Unix sockets
     check_sock "${H1_SOCK:-/dev/shm/xraylab-c2-h1.sock}"  "HTTP/1.1 decoy"

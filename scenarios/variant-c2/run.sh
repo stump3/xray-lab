@@ -148,7 +148,7 @@ cmd_up() {
     echo "  Nginx h2c:  unix:${H2C_SOCK} (gRPC routing)"
     echo "  API:        127.0.0.1:${API_PORT}"
     echo "  gRPC ports: :${TROJAN_GRPC_PORT} :${VLESS_GRPC_PORT} :${VMESS_GRPC_PORT} :${SS_GRPC_PORT}"
-    echo "  SS ports:   :${SS_WS_PORT} :${SS_TC_PORT} :${SS_H2_PORT}"
+    echo "  SS ports:   :${SS_WS_PORT} :${SS_TC_PORT} :${SS_XHTTP_PORT}"
 }
 
 cmd_down() {
