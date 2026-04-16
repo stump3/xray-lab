@@ -34,17 +34,19 @@ trap cleanup EXIT INT TERM
 # Описание намеренно короткое — умещается в одну строку в любом терминале 80+
 
 declare -a IDS TITLES DESCS
-IDS=(   "variant-a" "variant-b" "variant-c" "variant-d" )
+IDS=(   "variant-a" "variant-b" "variant-c" "variant-c2" "variant-d" )
 TITLES=(
     "VLESS + XHTTP + Reality"
     "Nginx stream SNI routing"
     "Xray native fallbacks  (All-in-One)"
+    "All-in-One расширенный  (17 протоколов)"
     "Self-SNI"
 )
 DESCS=(
     "Нет домена и сертификата. Xray напрямую на :443. Максимальная скрытность от DPI."
     "Reality и WS/CDN одновременно на :443. Нужны домен + сертификат + nginx-full."
     "VLESS+TLS с деревом fallbacks: много протоколов на :443. Нужны домен + сертификат."
+    "VLESS/VMess/Trojan/SS × TCP/WS/gRPC/H2 на :443. Нужен wildcard сертификат + /dev/shm."
     "Decoy — собственный сайт на том же IP. Домен + IP + сертификат + сайт согласованы."
 )
 
