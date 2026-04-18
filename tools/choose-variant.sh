@@ -34,7 +34,7 @@ trap cleanup EXIT INT TERM
 # Описание намеренно короткое — умещается в одну строку в любом терминале 80+
 
 declare -a IDS TITLES DESCS
-IDS=(   "variant-a" "variant-b" "variant-c" "variant-c2" "variant-d" )
+IDS=(   "variant-a" "variant-b" "variant-b2" "variant-c" "variant-c2" "variant-d" )
 TITLES=(
     "VLESS + XHTTP + Reality"
     "Nginx stream SNI routing"

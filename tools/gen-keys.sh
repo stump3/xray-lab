@@ -57,6 +57,18 @@ if [[ "${1:-}" == "--write" && -n "${2:-}" ]]; then
                 "$VARS"
             echo "  variant-a: UUID, PRIV_KEY, PUB_KEY, SHORT_ID → $VARS"
             ;;
+        variant-b2)
+            H2_PASS="$(openssl rand -hex 16)"
+            sed -i \
+                -e "s|^UUID_REALITY=.*|UUID_REALITY=${UUID_1}|" \
+                -e "s|^UUID_WS=.*|UUID_WS=${UUID_2}|" \
+                -e "s|^PRIV_KEY=.*|PRIV_KEY=${PRIV_KEY}|" \
+                -e "s|^PUB_KEY=.*|PUB_KEY=${PUB_KEY}|" \
+                -e "s|^SHORT_ID=.*|SHORT_ID=${SHORT_ID}|" \
+                -e "s|^H2_PASSWORD=.*|H2_PASSWORD=${H2_PASS}|" \
+                "$VARS"
+            echo "  variant-b2: UUID_REALITY, UUID_WS, x25519, SHORT_ID, H2_PASSWORD → $VARS"
+            ;;
         variant-b)
             sed -i \
                 -e "s|^UUID_REALITY=.*|UUID_REALITY=${UUID_1}|" \

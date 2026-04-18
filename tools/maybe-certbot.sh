@@ -31,6 +31,9 @@ set -a; source "$VARS"; set +a
 
 DOMAIN="${DOMAIN:-}"
 CERT_FILE="${CERT_FILE:-}"
+H2_DOMAIN="${H2_DOMAIN:-}"
+H2_CERT_FILE="${H2_CERT_FILE:-}"
+
 
 [[ -n "$DOMAIN" && "$DOMAIN" != "your-domain.com" ]] || {
     warn "DOMAIN не задан или не изменён — пропускаю получение сертификата."
@@ -41,6 +44,19 @@ CERT_FILE="${CERT_FILE:-}"
 # Сертификат уже есть
 if [[ -f "$CERT_FILE" ]]; then
     ok "Сертификат уже существует: $CERT_FILE"
+    # Для variant-b2 проверяем ещё сертификат Hysteria2
+    if [[ "$VARIANT" == "variant-b2" && -n "$H2_DOMAIN" && "$H2_DOMAIN" != "$DOMAIN" ]]; then
+        if [[ ! -f "$H2_CERT_FILE" ]]; then
+            printf "\n  Hysteria2 использует отдельный домен (%s).\n" "$H2_DOMAIN" > /dev/tty
+            printf "  Получить сертификат для него? [y/N]: " > /dev/tty
+            read -r h2ans < /dev/tty
+            if [[ "${h2ans,,}" == "y" ]]; then
+                certbot certonly --standalone -d "$H2_DOMAIN" --non-interactive                     --agree-tos --email "admin@${H2_DOMAIN}" 2>&1 | tee /dev/tty                     && ok "Сертификат H2 получен" || warn "certbot для H2_DOMAIN завершился с ошибкой"
+            fi
+        else
+            ok "Сертификат Hysteria2 уже существует: $H2_CERT_FILE"
+        fi
+    fi
     exit 0
 fi
 
