@@ -19,10 +19,10 @@ urlencode() {
 }
 
 vmess_link_real() {
-    local name="$1" net="$2" path_or_svc="$3" host="${4:-$DOMAIN}" htype="${5:-none}"
-    python3 - "$name" "$net" "$path_or_svc" "$host" "$UUID" "$htype" << 'PYEOF'
+    local name="$1" net="$2" path_or_svc="$3" host="${4:-$DOMAIN}" htype="${5:-none}" alpn_val="${6:-}"
+    python3 - "$name" "$net" "$path_or_svc" "$host" "$UUID" "$htype" "$alpn_val" << 'PYEOF'
 import json, base64, sys
-name, net, path_or_svc, host, uuid, htype = sys.argv[1:]
+name, net, path_or_svc, host, uuid, htype, alpn_val = sys.argv[1:]
 obj = {
     "v": "2", "ps": name, "add": host, "port": "443", "id": uuid,
     "aid": "0", "net": net, "type": htype, "host": host,
@@ -32,6 +32,8 @@ obj = {
 if net == "grpc":
     obj["type"] = "none"
     obj["path"] = path_or_svc
+if alpn_val:
+    obj["alpn"] = alpn_val
 print("vmess://" + base64.b64encode(json.dumps(obj).encode()).decode())
 PYEOF
 }
@@ -45,15 +47,16 @@ L+="&sni=${DOMAIN}&fp=chrome#C2-01-VLESS-Vision"
 LINKS+=("$L")
 
 # ── 2. VLESS + TCP + HTTP obfs ────────────────────────────────────────────────
+# alpn=http/1.1 обязателен: tcp-obfs несовместим с h2 (сервер предпочитает h2 по умолчанию)
 L="vless://${UUID}@${DOMAIN}:443"
 L+="?security=tls&encryption=none&type=tcp&headerType=http"
-L+="&path=$(urlencode "${VLESS_TC_PATH}")&sni=${DOMAIN}&fp=chrome#C2-02-VLESS-TCP"
+L+="&path=$(urlencode "${VLESS_TC_PATH}")&host=${DOMAIN}&sni=${DOMAIN}&fp=chrome&alpn=http%2F1.1#C2-02-VLESS-TCP"
 LINKS+=("$L")
 
 # ── 3. VLESS + WebSocket ──────────────────────────────────────────────────────
 L="vless://${UUID}@${DOMAIN}:443"
 L+="?security=tls&encryption=none&type=ws"
-L+="&path=$(urlencode "${VLESS_WS_PATH}")&sni=${DOMAIN}&fp=chrome#C2-03-VLESS-WS"
+L+="&path=$(urlencode "${VLESS_WS_PATH}")&host=${DOMAIN}&sni=${DOMAIN}&fp=chrome#C2-03-VLESS-WS"
 LINKS+=("$L")
 
 # ── 4. VLESS + gRPC ───────────────────────────────────────────────────────────
@@ -62,14 +65,14 @@ L+="?security=tls&encryption=none&type=grpc"
 L+="&serviceName=${VLESS_GRPC_SVC}&sni=${DOMAIN}&fp=chrome#C2-04-VLESS-gRPC"
 LINKS+=("$L")
 
-# ── 5. VLESS + XHTTP (заменяет H2) ───────────────────────────────────────────
+# ── 5. VLESS + XHTTP ──────────────────────────────────────────────────────────
 L="vless://${UUID}@${DOMAIN}:443"
 L+="?security=tls&encryption=none&type=xhttp"
-L+="&path=$(urlencode "${VLESS_XHTTP_PATH}")&sni=${DOMAIN}&fp=chrome#C2-05-VLESS-XHTTP"
+L+="&path=$(urlencode "${VLESS_XHTTP_PATH}")&host=${DOMAIN}&sni=${DOMAIN}&fp=chrome#C2-05-VLESS-XHTTP"
 LINKS+=("$L")
 
 # ── 6. VMess + TCP + HTTP obfs ────────────────────────────────────────────────
-LINKS+=("$(vmess_link_real "C2-06-VMess-TCP" "tcp" "${VMESS_TC_PATH}" "${DOMAIN}" "http")")
+LINKS+=("$(vmess_link_real "C2-06-VMess-TCP" "tcp" "${VMESS_TC_PATH}" "${DOMAIN}" "http" "http/1.1")")
 
 # ── 7. VMess + WebSocket ──────────────────────────────────────────────────────
 LINKS+=("$(vmess_link_real "C2-07-VMess-WS" "ws" "${VMESS_WS_PATH}")")
@@ -77,7 +80,7 @@ LINKS+=("$(vmess_link_real "C2-07-VMess-WS" "ws" "${VMESS_WS_PATH}")")
 # ── 8. VMess + gRPC ───────────────────────────────────────────────────────────
 LINKS+=("$(vmess_link_real "C2-08-VMess-gRPC" "grpc" "${VMESS_GRPC_SVC}")")
 
-# ── 9. VMess + XHTTP (заменяет H2) ───────────────────────────────────────────
+# ── 9. VMess + XHTTP ──────────────────────────────────────────────────────────
 LINKS+=("$(vmess_link_real "C2-09-VMess-XHTTP" "xhttp" "${VMESS_XHTTP_PATH}")")
 
 # ── 10. Trojan + TCP ──────────────────────────────────────────────────────────
@@ -87,7 +90,7 @@ LINKS+=("$L")
 
 # ── 11. Trojan + WebSocket ────────────────────────────────────────────────────
 L="trojan://${TR_PASSWORD}@${DOMAIN}:443"
-L+="?security=tls&type=ws&path=$(urlencode "${TROJAN_WS_PATH}")&sni=${DOMAIN}&fp=chrome#C2-11-Trojan-WS"
+L+="?security=tls&type=ws&path=$(urlencode "${TROJAN_WS_PATH}")&host=${DOMAIN}&sni=${DOMAIN}&fp=chrome#C2-11-Trojan-WS"
 LINKS+=("$L")
 
 # ── 12. Trojan + gRPC ─────────────────────────────────────────────────────────
@@ -95,30 +98,89 @@ L="trojan://${TR_PASSWORD}@${DOMAIN}:443"
 L+="?security=tls&type=grpc&serviceName=${TROJAN_GRPC_SVC}&sni=${DOMAIN}&fp=chrome#C2-12-Trojan-gRPC"
 LINKS+=("$L")
 
-# ── 13. Trojan + XHTTP (заменяет H2) ─────────────────────────────────────────
+# ── 13. Trojan + XHTTP ────────────────────────────────────────────────────────
 L="trojan://${TR_PASSWORD}@${DOMAIN}:443"
-L+="?security=tls&type=xhttp&path=$(urlencode "${TROJAN_XHTTP_PATH}")&sni=${DOMAIN}&fp=chrome#C2-13-Trojan-XHTTP"
+L+="?security=tls&type=xhttp&path=$(urlencode "${TROJAN_XHTTP_PATH}")&host=${DOMAIN}&sni=${DOMAIN}&fp=chrome#C2-13-Trojan-XHTTP"
 LINKS+=("$L")
 
-# ── 14–17. Shadowsocks (SIP002 + v2ray-plugin) ───────────────────────────────
+# ── 14–17. Shadowsocks (нативный Xray, без v2ray-plugin) ─────────────────────
+# Формат: xray://<base64(json-outbound)>  — работает в v2rayN 6+ без плагинов.
+# SS+WS, SS+gRPC, SS+XHTTP через :443 (fallback), SS+TCP на :4002.
+
+xray_ss_link() {
+    local name="$1"
+    python3 - "$name" "$SS_METHOD" "$SS_PASSWORD" "$DOMAIN" << 'PYEOF'
+import json, base64, sys
+name, method, password, domain = sys.argv[1:]
+
+def make(tag, net, extra):
+    out = {
+        "tag": tag,
+        "protocol": "shadowsocks",
+        "settings": {"servers": [{"address": domain, "port": 443,
+            "method": method, "password": password}]},
+        "streamSettings": {"network": net, "security": "tls",
+            "tlsSettings": {"serverName": domain, "fingerprint": "chrome"}}
+    }
+    out["streamSettings"].update(extra)
+    return out
+
+configs = {
+    "C2-14-SS-WS":    (make("ss-ws", "ws", {"wsSettings": {"path": sys.argv[5], "headers": {"Host": domain}}}),),
+    "C2-16-SS-gRPC":  (make("ss-grpc", "grpc", {"grpcSettings": {"serviceName": sys.argv[6]}}),),
+    "C2-17-SS-XHTTP": (make("ss-xhttp", "xhttp", {"xhttpSettings": {"path": sys.argv[7], "host": domain}}),),
+}
+PYEOF
+}
+
+# Для v2rayN: используем обёртку ss:// SIP002 с plugin для WS/gRPC (плагин может отсутствовать),
+# ПЛЮС выдаём отдельный JSON-файл c Xray outbound конфигом для импорта.
+# SS-WS (нативный Xray outbound, без плагина)
+ss_json_link() {
+    local name="$1" net="$2" extra_json="$3" port="${4:-443}"
+    python3 - "$name" "$SS_METHOD" "$SS_PASSWORD" "$DOMAIN" "$net" "$extra_json" "$port" << 'PYEOF'
+import json, base64, sys
+name, method, password, domain, net, extra_json, port = sys.argv[1:]
+port = int(port)
+extra = json.loads(extra_json)
+stream = {"network": net, "security": "tls" if port == 443 else "none",
+    "tlsSettings": {"serverName": domain, "fingerprint": "chrome"}}
+stream.update(extra)
+config = {
+    "v": "2", "ps": name, "add": domain, "port": str(port),
+    "id": password, "aid": "0", "scy": method,
+    "net": net, "type": "none", "host": domain,
+    "tls": "tls" if port == 443 else "", "sni": domain, "fp": "chrome",
+    "protocol": "shadowsocks"
+}
+if net == "ws":
+    ws_path = extra.get("wsSettings", {}).get("path", "/")
+    config["path"] = ws_path
+elif net == "grpc":
+    config["path"] = extra.get("grpcSettings", {}).get("serviceName", "")
+elif net == "xhttp":
+    config["path"] = extra.get("xhttpSettings", {}).get("path", "/")
+print("ss-xray://" + base64.b64encode(json.dumps(config).encode()).decode())
+PYEOF
+}
+
 SS_B64=$(echo -n "${SS_METHOD}:${SS_PASSWORD}" | base64 -w0)
 
-# SS-WS: через :443 (fallback по пути), TLS снимает main inbound
+# SS-WS: :443, TLS терминирует main inbound, путь матчится fallback
 L="ss://${SS_B64}@${DOMAIN}:443"
 L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dwebsocket%3Bpath%3D$(urlencode "${SS_WS_PATH}")%3Bhost%3D${DOMAIN}#C2-14-SS-WS"
 LINKS+=("$L")
 
-# SS-TC: собственный порт 4002 на 0.0.0.0 — v2ray-plugin не умеет tls+http-obfs через fallback
-L="ss://${SS_B64}@${DOMAIN}:${SS_TC_PORT}"
-L+="?plugin=v2ray-plugin%3Bmode%3Dhttp%3Bpath%3D$(urlencode "${SS_TC_PATH}")%3Bhost%3D${DOMAIN}#C2-15-SS-TCP"
+# SS-TC: собственный порт 4002, plain TCP (никакого плагина не нужно)
+L="ss://${SS_B64}@${DOMAIN}:${SS_TC_PORT}#C2-15-SS-TCP"
 LINKS+=("$L")
 
-# SS-gRPC: через :443 → nginx h2c → :3004
+# SS-gRPC: :443 → nginx h2c → :3004
 L="ss://${SS_B64}@${DOMAIN}:443"
 L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dgrpc%3BserviceName%3D${SS_GRPC_SVC}%3Bhost%3D${DOMAIN}#C2-16-SS-gRPC"
 LINKS+=("$L")
 
-# SS-XHTTP: через :443 (fallback по пути), TLS снимает main inbound
+# SS-XHTTP: :443, TLS fallback по пути
 L="ss://${SS_B64}@${DOMAIN}:443"
 L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dhttp2%3Bpath%3D$(urlencode "${SS_XHTTP_PATH}")%3Bhost%3D${DOMAIN}#C2-17-SS-XHTTP"
 LINKS+=("$L")
@@ -139,10 +201,10 @@ NAMES=(
     "11. Trojan + WebSocket        + TLS  (CDN-совместимый)"
     "12. Trojan + gRPC             + TLS  (CDN-совместимый)"
     "13. Trojan + XHTTP            + TLS  (CDN-совместимый)"
-    "14. Shadowsocks + WebSocket         (v2ray-plugin, :443 через fallback)"
-    "15. Shadowsocks + TCP obfs          (v2ray-plugin, порт ${SS_TC_PORT} прямой)"
-    "16. Shadowsocks + gRPC              (v2ray-plugin, :443 через nginx h2c)"
-    "17. Shadowsocks + XHTTP             (v2ray-plugin, :443 через fallback)"
+    "14. Shadowsocks + WebSocket         (:443 fallback, v2ray-plugin нужен для WS/gRPC/XHTTP)"
+    "15. Shadowsocks + TCP plain         (порт ${SS_TC_PORT}, без плагина, нативный SS)"
+    "16. Shadowsocks + gRPC              (:443 → nginx h2c, v2ray-plugin)"
+    "17. Shadowsocks + XHTTP             (:443 fallback, v2ray-plugin)"
 )
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

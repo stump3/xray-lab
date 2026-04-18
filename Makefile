@@ -96,13 +96,13 @@ quickstart:
 	bash $(TOOLS)/gen-keys.sh --write $$CHOSEN && \
 	bash $(TOOLS)/maybe-certbot.sh $$CHOSEN && \
 	bash scenarios/$$CHOSEN/run.sh up && \
-	bash $(TOOLS)/gen-link.sh $$CHOSEN --qr
+	bash $(TOOLS)/gen-link.sh $$CHOSEN --qr --sub
 
 # init-auto → keys → up → link-qr (без вопросов, VAR= обязателен)
 quickstart-auto: init-auto
 	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
 	@bash $(SCENARIO)/run.sh up
-	@bash $(TOOLS)/gen-link.sh $(VAR) --qr
+	@bash $(TOOLS)/gen-link.sh $(VAR) --qr --sub
 
 keys: init
 	@bash $(TOOLS)/gen-keys.sh --write $(VAR)
