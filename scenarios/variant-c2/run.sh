@@ -83,8 +83,8 @@ wait_for_sock() {
 check_prereqs() {
     if [[ ! -f "${CERT_FILE:-}" ]]; then
         echo "  [✗] TLS-сертификат не найден: ${CERT_FILE:-не задан}"
-        echo "      Нужен wildcard cert. Пример:"
-        echo "      certbot certonly --standalone -d ${DOMAIN:-your-domain.com} -d *.${DOMAIN:-your-domain.com}"
+        echo "      Нужен обычный cert для домена. Пример:"
+        echo "      certbot certonly --standalone -d ${DOMAIN:-your-domain.com}"
         exit 1
     fi
     [[ -d /dev/shm ]] || { echo "  [✗] /dev/shm недоступен"; exit 1; }

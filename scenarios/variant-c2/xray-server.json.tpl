@@ -33,13 +33,23 @@
           { "path": "${VMESS_WS_PATH}",    "dest": "@vmess-ws",      "xver": 2 },
           { "path": "${TROJAN_WS_PATH}",   "dest": "@trojan-ws",     "xver": 2 },
           { "path": "${SS_WS_PATH}",       "dest": ${SS_WS_PORT},    "xver": 2 },
+
+          { "alpn": "h2", "path": "${VLESS_TC_PATH}",    "dest": "@vless-tcp",     "xver": 2 },
+          { "alpn": "h2", "path": "${VMESS_TC_PATH}",    "dest": "@vmess-tcp",     "xver": 2 },
+          { "alpn": "h2", "path": "${SS_TC_PATH}",       "dest": ${SS_TC_PORT},    "xver": 2 },
           { "path": "${VLESS_TC_PATH}",    "dest": "@vless-tcp",     "xver": 2 },
           { "path": "${VMESS_TC_PATH}",    "dest": "@vmess-tcp",     "xver": 2 },
           { "path": "${SS_TC_PATH}",       "dest": ${SS_TC_PORT},    "xver": 2 },
+
+          { "alpn": "h2", "path": "${VLESS_XHTTP_PATH}", "dest": "@vless-xhttp",   "xver": 2 },
+          { "alpn": "h2", "path": "${VMESS_XHTTP_PATH}", "dest": "@vmess-xhttp",   "xver": 2 },
+          { "alpn": "h2", "path": "${TROJAN_XHTTP_PATH}","dest": "@trojan-xhttp",  "xver": 2 },
+          { "alpn": "h2", "path": "${SS_XHTTP_PATH}",    "dest": ${SS_XHTTP_PORT}, "xver": 2 },
           { "path": "${VLESS_XHTTP_PATH}", "dest": "@vless-xhttp",   "xver": 2 },
           { "path": "${VMESS_XHTTP_PATH}", "dest": "@vmess-xhttp",   "xver": 2 },
           { "path": "${TROJAN_XHTTP_PATH}","dest": "@trojan-xhttp",  "xver": 2 },
           { "path": "${SS_XHTTP_PATH}",    "dest": ${SS_XHTTP_PORT}, "xver": 2 },
+
           { "alpn": "h2",                  "dest": "@trojan-tcp",    "xver": 2 },
           { "dest": "${H1_SOCK}",                                     "xver": 2 }
         ]
@@ -126,7 +136,7 @@
     },
 
     {
-      "tag": "ss-tcp", "listen": "127.0.0.1", "port": ${SS_TC_PORT}, "protocol": "shadowsocks",
+      "tag": "ss-tcp", "listen": "0.0.0.0", "port": ${SS_TC_PORT}, "protocol": "shadowsocks",
       "settings": { "method": "${SS_METHOD}", "password": "${SS_PASSWORD}", "network": "tcp" },
       "streamSettings": { "network": "tcp", "security": "none", "tcpSettings": { "acceptProxyProtocol": true, "header": { "type": "http", "request": { "path": ["${SS_TC_PATH}"] } } } }
     },

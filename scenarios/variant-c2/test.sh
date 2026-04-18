@@ -107,7 +107,7 @@ test_fallback() {
         info "Default fallback → нет HTTP-ответа (${code})"
     fi
 
-    # WS path fallback
+    # WS path fallback (HTTP/1.1, Upgrade: websocket)
     local ws_code
     ws_code=$(curl -fsSk --max-time 5 -o /dev/null -w "%{http_code}" \
         --http1.1 \
@@ -118,6 +118,57 @@ test_fallback() {
         ok "WS path fallback → sub-inbound (HTTP ${ws_code})"
     else
         fail "WS path fallback → нет ответа (HTTP ${ws_code})"
+    fi
+
+    # XHTTP path fallback (HTTP/1.1 POST → должен роутиться в xhttp-inbound)
+    # Xray отвечает 200 или 400 если всё верно смаршрутировалось
+    local xh_code
+    xh_code=$(curl -fsSk --max-time 5 -o /dev/null -w "%{http_code}" \
+        --http1.1 -X POST \
+        -H "Host: ${domain}" -H "Content-Type: application/octet-stream" \
+        "https://127.0.0.1:443${VLESS_XHTTP_PATH:-/vlxh}" 2>/dev/null) || xh_code=0
+    if [[ "$xh_code" =~ ^(200|400|405)$ ]]; then
+        ok "VLESS XHTTP path fallback → sub-inbound (HTTP ${xh_code})"
+    else
+        fail "VLESS XHTTP path fallback → нет ответа (HTTP ${xh_code})"
+    fi
+
+    # TCP-obfs path fallback (HTTP/1.1, имитация http-obfs заголовка)
+    local tc_code
+    tc_code=$(curl -fsSk --max-time 5 -o /dev/null -w "%{http_code}" \
+        --http1.1 \
+        -H "Host: ${domain}" -H "Connection: Upgrade" \
+        "https://127.0.0.1:443${VLESS_TC_PATH:-/vltc}" 2>/dev/null) || tc_code=0
+    if [[ "$tc_code" =~ ^[1-9] ]]; then
+        ok "VLESS TCP-obfs path fallback → sub-inbound (HTTP ${tc_code})"
+    else
+        fail "VLESS TCP-obfs path fallback → нет ответа (HTTP ${tc_code})"
+    fi
+
+    # gRPC path fallback (h2 ALPN → nginx h2c.sock → grpc inbound)
+    # Ожидаем 200 или 400 (gRPC без правильного body)
+    local grpc_code
+    grpc_code=$(curl -fsSk --max-time 5 -o /dev/null -w "%{http_code}" \
+        --http2 -X POST \
+        -H "Host: ${domain}" -H "Content-Type: application/grpc" \
+        "https://127.0.0.1:443/${VLESS_GRPC_SVC:-vlgrpc}" 2>/dev/null) || grpc_code=0
+    if [[ "$grpc_code" =~ ^(200|400|415)$ ]]; then
+        ok "VLESS gRPC path → nginx h2c → grpc inbound (HTTP ${grpc_code})"
+    else
+        fail "VLESS gRPC path → нет ответа (HTTP ${grpc_code})"
+    fi
+
+    # Subscription endpoint
+    local sub_path="${SUB_PATH:-/sub}"
+    local sub_code
+    sub_code=$(curl -fsSk --max-time 5 -o /dev/null -w "%{http_code}" \
+        "https://127.0.0.1:443${sub_path}/c2.txt" -H "Host: ${domain}" 2>/dev/null) || sub_code=0
+    if [[ "$sub_code" == "200" ]]; then
+        ok "Subscription endpoint → https://${domain}${sub_path}/c2.txt (HTTP 200)"
+    elif [[ "$sub_code" == "404" ]]; then
+        info "Subscription файл не найден — запусти: make link-sub VAR=variant-c2"
+    else
+        info "Subscription endpoint → HTTP ${sub_code}"
     fi
 }
 
@@ -134,16 +185,16 @@ test_domain() {
     [[ -f "$key" ]] && ok "Файл ключа существует: $key" \
                       || fail "Файл ключа не найден: ${key:-не задан}"
 
-    # Проверить что сертификат покрывает wildcard
     local sans
     sans=$(openssl x509 -noout -text -in "$cert" 2>/dev/null \
         | grep -A1 "Subject Alternative Name" | tail -1) || sans=""
+    [[ -n "$sans" ]] && info "SAN: $sans"
 
-    if echo "$sans" | grep -q "\*\.${DOMAIN:-x}"; then
-        ok "Сертификат wildcard: покрывает *.${DOMAIN} (H2 субдомены OK)"
+    # variant-c2 использует XHTTP вместо H2 — wildcard НЕ нужен
+    if echo "$sans" | grep -q "DNS:${DOMAIN:-x}"; then
+        ok "Сертификат покрывает ${DOMAIN} (wildcard не нужен — H2 заменён XHTTP)"
     elif [[ -n "$sans" ]]; then
-        info "SAN: $sans"
-        info "H2 субдомены (trh2o, vlh2o, vmh2o, ssh2o) требуют wildcard или отдельных SAN"
+        info "Сертификат: wildcard не нужен, XHTTP работает на основном домене"
     fi
 
     local expiry

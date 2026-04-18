@@ -7,7 +7,7 @@ SCENARIO := scenarios/$(VAR)
 TOOLS    := tools
 SCRIPTS  := scripts
 
-.PHONY: help choose select install install-no-service update update-check update-auto rollback uninstall uninstall-force reinstall init init-auto quickstart quickstart-auto keys up down restart client logs status test test-server test-domain test-proxy link link-qr link-save check-domain
+.PHONY: help choose select install install-no-service update update-check update-auto rollback uninstall uninstall-force reinstall init init-auto quickstart quickstart-auto keys up down restart client logs status test test-server test-domain test-proxy link link-qr link-save link-sub check-domain
 
 help:
 	@echo ""
@@ -38,7 +38,7 @@ help:
 	@echo "    make logs / status"
 	@echo ""
 	@echo "  Тесты:  make test / test-server / test-domain / test-proxy"
-	@echo "  Ссылки: make link / link-qr / link-save"
+	@echo "  Ссылки: make link / link-qr / link-save / link-sub"
 	@echo "  Домен:  make check-domain D=$(D)"
 	@echo ""
 
@@ -151,6 +151,9 @@ link-qr:
 
 link-save:
 	@bash $(TOOLS)/gen-link.sh $(VAR) --save
+
+link-sub:
+	@bash $(TOOLS)/gen-link.sh $(VAR) --sub
 
 # ── Инструменты ───────────────────────────────────────────────────────────────
 

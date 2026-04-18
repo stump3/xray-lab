@@ -19,19 +19,19 @@ urlencode() {
 }
 
 vmess_link_real() {
-    local name="$1" net="$2" path_or_svc="$3" host="${4:-$DOMAIN}"
-    python3 - "$name" "$net" "$path_or_svc" "$host" "$UUID" << 'PYEOF'
+    local name="$1" net="$2" path_or_svc="$3" host="${4:-$DOMAIN}" htype="${5:-none}"
+    python3 - "$name" "$net" "$path_or_svc" "$host" "$UUID" "$htype" << 'PYEOF'
 import json, base64, sys
-name, net, path_or_svc, host, uuid = sys.argv[1:]
+name, net, path_or_svc, host, uuid, htype = sys.argv[1:]
 obj = {
     "v": "2", "ps": name, "add": host, "port": "443", "id": uuid,
-    "aid": "0", "net": net, "type": "none", "host": host,
+    "aid": "0", "net": net, "type": htype, "host": host,
     "path": path_or_svc if net in ("ws","tcp","http","xhttp") else "",
     "tls": "tls", "sni": host, "fp": "chrome"
 }
 if net == "grpc":
-    obj["path"] = ""
-    obj["type"] = path_or_svc
+    obj["type"] = "none"
+    obj["path"] = path_or_svc
 print("vmess://" + base64.b64encode(json.dumps(obj).encode()).decode())
 PYEOF
 }
@@ -69,7 +69,7 @@ L+="&path=$(urlencode "${VLESS_XHTTP_PATH}")&sni=${DOMAIN}&fp=chrome#C2-05-VLESS
 LINKS+=("$L")
 
 # ── 6. VMess + TCP + HTTP obfs ────────────────────────────────────────────────
-LINKS+=("$(vmess_link_real "C2-06-VMess-TCP" "tcp" "${VMESS_TC_PATH}")")
+LINKS+=("$(vmess_link_real "C2-06-VMess-TCP" "tcp" "${VMESS_TC_PATH}" "${DOMAIN}" "http")")
 
 # ── 7. VMess + WebSocket ──────────────────────────────────────────────────────
 LINKS+=("$(vmess_link_real "C2-07-VMess-WS" "ws" "${VMESS_WS_PATH}")")
@@ -103,20 +103,24 @@ LINKS+=("$L")
 # ── 14–17. Shadowsocks (SIP002 + v2ray-plugin) ───────────────────────────────
 SS_B64=$(echo -n "${SS_METHOD}:${SS_PASSWORD}" | base64 -w0)
 
-L="ss://${SS_B64}@${DOMAIN}:${SS_WS_PORT}"
-L+="?plugin=v2ray-plugin%3Bmode%3Dwebsocket%3Bpath%3D$(urlencode "${SS_WS_PATH}")#C2-14-SS-WS"
+# SS-WS: через :443 (fallback по пути), TLS снимает main inbound
+L="ss://${SS_B64}@${DOMAIN}:443"
+L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dwebsocket%3Bpath%3D$(urlencode "${SS_WS_PATH}")%3Bhost%3D${DOMAIN}#C2-14-SS-WS"
 LINKS+=("$L")
 
+# SS-TC: собственный порт 4002 на 0.0.0.0 — v2ray-plugin не умеет tls+http-obfs через fallback
 L="ss://${SS_B64}@${DOMAIN}:${SS_TC_PORT}"
-L+="?plugin=v2ray-plugin%3Bmode%3Dhttp%3Bpath%3D$(urlencode "${SS_TC_PATH}")#C2-15-SS-TCP"
+L+="?plugin=v2ray-plugin%3Bmode%3Dhttp%3Bpath%3D$(urlencode "${SS_TC_PATH}")%3Bhost%3D${DOMAIN}#C2-15-SS-TCP"
 LINKS+=("$L")
 
-L="ss://${SS_B64}@${DOMAIN}:${SS_GRPC_PORT}"
-L+="?plugin=v2ray-plugin%3Bmode%3Dgrpc%3BserviceName%3D${SS_GRPC_SVC}#C2-16-SS-gRPC"
+# SS-gRPC: через :443 → nginx h2c → :3004
+L="ss://${SS_B64}@${DOMAIN}:443"
+L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dgrpc%3BserviceName%3D${SS_GRPC_SVC}%3Bhost%3D${DOMAIN}#C2-16-SS-gRPC"
 LINKS+=("$L")
 
-L="ss://${SS_B64}@${DOMAIN}:${SS_XHTTP_PORT}"
-L+="?plugin=v2ray-plugin%3Bmode%3Dhttp2%3Bpath%3D$(urlencode "${SS_XHTTP_PATH}")#C2-17-SS-XHTTP"
+# SS-XHTTP: через :443 (fallback по пути), TLS снимает main inbound
+L="ss://${SS_B64}@${DOMAIN}:443"
+L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dhttp2%3Bpath%3D$(urlencode "${SS_XHTTP_PATH}")%3Bhost%3D${DOMAIN}#C2-17-SS-XHTTP"
 LINKS+=("$L")
 
 # ── Вывод ────────────────────────────────────────────────────────────────────
@@ -135,10 +139,10 @@ NAMES=(
     "11. Trojan + WebSocket        + TLS  (CDN-совместимый)"
     "12. Trojan + gRPC             + TLS  (CDN-совместимый)"
     "13. Trojan + XHTTP            + TLS  (CDN-совместимый)"
-    "14. Shadowsocks + WebSocket         (v2ray-plugin, порт ${SS_WS_PORT})"
-    "15. Shadowsocks + TCP obfs          (v2ray-plugin, порт ${SS_TC_PORT})"
-    "16. Shadowsocks + gRPC              (v2ray-plugin, порт ${SS_GRPC_PORT})"
-    "17. Shadowsocks + XHTTP             (v2ray-plugin, порт ${SS_XHTTP_PORT})"
+    "14. Shadowsocks + WebSocket         (v2ray-plugin, :443 через fallback)"
+    "15. Shadowsocks + TCP obfs          (v2ray-plugin, порт ${SS_TC_PORT} прямой)"
+    "16. Shadowsocks + gRPC              (v2ray-plugin, :443 через nginx h2c)"
+    "17. Shadowsocks + XHTTP             (v2ray-plugin, :443 через fallback)"
 )
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -148,10 +152,11 @@ echo "  H2 → XHTTP (path-based, без субдоменов, без wildcard c
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo
 
-QR=0; SAVE=0
+QR=0; SAVE=0; SUB=0
 for arg in "$@"; do
     [[ "$arg" == "--qr"   ]] && QR=1
     [[ "$arg" == "--save" ]] && SAVE=1
+    [[ "$arg" == "--sub"  ]] && SUB=1
 done
 
 for i in "${!LINKS[@]}"; do
@@ -168,4 +173,20 @@ if (( SAVE )); then
     OUT="${REPO_ROOT}/notes/variant-c2-links.txt"
     printf "%s\n" "${LINKS[@]}" > "$OUT"
     echo "Сохранено: $OUT"
+fi
+
+if (( SUB )); then
+    SUB_DIR="/var/www/sub"
+    SUB_FILE="${SUB_DIR}/c2.txt"
+    local_sub="${SUB_PATH:-/sub}"
+    # base64 с переносом строк для максимальной совместимости клиентов
+    SUB_B64=$(printf "%s\n" "${LINKS[@]}" | base64 -w76)
+    sudo mkdir -p "$SUB_DIR"
+    echo "$SUB_B64" | sudo tee "$SUB_FILE" > /dev/null
+    sudo chmod 644 "$SUB_FILE"
+    echo
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Subscription URL:"
+    echo "  https://${DOMAIN}${local_sub}/c2.txt"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 fi
