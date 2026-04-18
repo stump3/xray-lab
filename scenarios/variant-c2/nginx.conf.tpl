@@ -48,7 +48,8 @@ http {
     # Получает трафик из @trojan-tcp fallback (xver: 2) когда Trojan-auth провален
     # (т.е. gRPC-запросы). Nginx видит path и передаёт в нужный Xray grpc inbound.
     server {
-        listen unix:${H2C_SOCK} http2 proxy_protocol;
+        listen unix:${H2C_SOCK} proxy_protocol;
+        http2  on;   # nginx >= 1.25.1; для 1.24 установи nginx-extras или обнови
         server_name ${DOMAIN} _;
 
         set_real_ip_from  unix:;

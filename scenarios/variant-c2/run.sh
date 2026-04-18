@@ -127,6 +127,9 @@ cmd_up() {
     wait_for_sock "${H1_SOCK}"  "HTTP/1.1 decoy"
     wait_for_sock "${H2C_SOCK}" "HTTP/2 gRPC routing"
 
+    # Открываем порт для SS-TCP (plain TCP, без TLS)
+    sudo ufw allow "${SS_TC_PORT}/tcp" comment "SS-TCP (C2-15)" 2>/dev/null || true
+
     release_port 443
 
     echo "==> Запуск Xray (:443, TLS+Vision, fallbacks → 17 протоколов)..."

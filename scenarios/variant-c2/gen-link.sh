@@ -176,13 +176,17 @@ L="ss://${SS_B64}@${DOMAIN}:${SS_TC_PORT}#C2-15-SS-TCP"
 LINKS+=("$L")
 
 # SS-gRPC: :443 → nginx h2c → :3004
-L="ss://${SS_B64}@${DOMAIN}:443"
-L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dgrpc%3BserviceName%3D${SS_GRPC_SVC}%3Bhost%3D${DOMAIN}#C2-16-SS-gRPC"
+# NOTE: SS+gRPC нативно не поддерживается в v2rayN без v2ray-plugin.
+# Используем VLESS-обёртку: клиент подключается как VLESS, сервер маршрутизирует через gRPC.
+# Альтернатива: установить v2ray-plugin в v2rayN отдельно.
+L="vless://${UUID}@${DOMAIN}:443"
+L+="?security=tls&encryption=none&type=grpc&serviceName=${SS_GRPC_SVC}&sni=${DOMAIN}&fp=chrome#C2-16-SS-gRPC-via-VLESS"
 LINKS+=("$L")
 
 # SS-XHTTP: :443, TLS fallback по пути
-L="ss://${SS_B64}@${DOMAIN}:443"
-L+="?plugin=v2ray-plugin%3Btls%3Bmode%3Dhttp2%3Bpath%3D$(urlencode "${SS_XHTTP_PATH}")%3Bhost%3D${DOMAIN}#C2-17-SS-XHTTP"
+# NOTE: используем VLESS+XHTTP вместо SS+XHTTP — нативный Xray без плагина.
+L="vless://${UUID}@${DOMAIN}:443"
+L+="?security=tls&encryption=none&type=xhttp&path=$(urlencode "${SS_XHTTP_PATH}")&host=${DOMAIN}&sni=${DOMAIN}&fp=chrome#C2-17-SS-XHTTP-via-VLESS"
 LINKS+=("$L")
 
 # ── Вывод ────────────────────────────────────────────────────────────────────

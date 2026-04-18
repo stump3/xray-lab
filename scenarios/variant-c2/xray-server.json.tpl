@@ -34,15 +34,9 @@
           { "path": "${TROJAN_WS_PATH}",   "dest": "@trojan-ws",     "xver": 2 },
           { "path": "${SS_WS_PATH}",       "dest": ${SS_WS_PORT},    "xver": 2 },
 
-          { "alpn": "h2", "path": "${VLESS_TC_PATH}",    "dest": "@vless-tcp",     "xver": 2 },
-          { "alpn": "h2", "path": "${VMESS_TC_PATH}",    "dest": "@vmess-tcp",     "xver": 2 },
           { "path": "${VLESS_TC_PATH}",    "dest": "@vless-tcp",     "xver": 2 },
           { "path": "${VMESS_TC_PATH}",    "dest": "@vmess-tcp",     "xver": 2 },
 
-          { "alpn": "h2", "path": "${VLESS_XHTTP_PATH}", "dest": "@vless-xhttp",   "xver": 2 },
-          { "alpn": "h2", "path": "${VMESS_XHTTP_PATH}", "dest": "@vmess-xhttp",   "xver": 2 },
-          { "alpn": "h2", "path": "${TROJAN_XHTTP_PATH}","dest": "@trojan-xhttp",  "xver": 2 },
-          { "alpn": "h2", "path": "${SS_XHTTP_PATH}",    "dest": ${SS_XHTTP_PORT}, "xver": 2 },
           { "path": "${VLESS_XHTTP_PATH}", "dest": "@vless-xhttp",   "xver": 2 },
           { "path": "${VMESS_XHTTP_PATH}", "dest": "@vmess-xhttp",   "xver": 2 },
           { "path": "${TROJAN_XHTTP_PATH}","dest": "@trojan-xhttp",  "xver": 2 },
@@ -56,7 +50,7 @@
         "network": "tcp", "security": "tls",
         "tlsSettings": {
           "certificates": [{ "certificateFile": "${CERT_FILE}", "keyFile": "${KEY_FILE}" }],
-          "alpn": ["h2", "http/1.1"],
+          "alpn": ["http/1.1"],
           "fingerprint": "chrome"
         }
       }
@@ -100,21 +94,21 @@
     {
       "tag": "vless-xhttp", "listen": "@vless-xhttp", "protocol": "vless",
       "settings": { "clients": [{ "id": "${UUID}", "email": "user-vless-xhttp", "level": 0 }], "decryption": "none" },
-      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${VLESS_XHTTP_PATH}", "mode": "stream-one", "acceptProxyProtocol": true } },
+      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${VLESS_XHTTP_PATH}", "mode": "auto", "acceptProxyProtocol": true } },
       "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true }
     },
 
     {
       "tag": "vmess-xhttp", "listen": "@vmess-xhttp", "protocol": "vmess",
       "settings": { "clients": [{ "id": "${UUID}", "email": "user-vmess-xhttp", "level": 0 }] },
-      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${VMESS_XHTTP_PATH}", "mode": "stream-one", "acceptProxyProtocol": true } },
+      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${VMESS_XHTTP_PATH}", "mode": "auto", "acceptProxyProtocol": true } },
       "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true }
     },
 
     {
       "tag": "trojan-xhttp", "listen": "@trojan-xhttp", "protocol": "trojan",
       "settings": { "clients": [{ "password": "${TR_PASSWORD}", "email": "user-trojan-xhttp", "level": 0 }] },
-      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${TROJAN_XHTTP_PATH}", "mode": "stream-one", "acceptProxyProtocol": true } },
+      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${TROJAN_XHTTP_PATH}", "mode": "auto", "acceptProxyProtocol": true } },
       "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true }
     },
 
@@ -142,7 +136,7 @@
     {
       "tag": "ss-xhttp", "listen": "127.0.0.1", "port": ${SS_XHTTP_PORT}, "protocol": "shadowsocks",
       "settings": { "method": "${SS_METHOD}", "password": "${SS_PASSWORD}", "network": "tcp" },
-      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${SS_XHTTP_PATH}", "mode": "stream-one", "acceptProxyProtocol": true } }
+      "streamSettings": { "network": "xhttp", "security": "none", "xhttpSettings": { "path": "${SS_XHTTP_PATH}", "mode": "auto", "acceptProxyProtocol": true } }
     },
 
     {
