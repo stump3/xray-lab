@@ -38,6 +38,7 @@ IDS=(   "variant-a" "variant-b" "variant-b2" "variant-c" "variant-c2" "variant-d
 TITLES=(
     "VLESS + XHTTP + Reality"
     "Nginx stream SNI routing"
+    "Nginx stream SNI + Hysteria2"
     "Xray native fallbacks  (All-in-One)"
     "All-in-One расширенный  (17 протоколов)"
     "Self-SNI"
@@ -45,6 +46,7 @@ TITLES=(
 DESCS=(
     "Нет домена и сертификата. Xray напрямую на :443. Максимальная скрытность от DPI."
     "Reality и WS/CDN одновременно на :443. Нужны домен + сертификат + nginx-full."
+    "Как B, плюс Hysteria2 на UDP:443. Нужны домен + сертификат (wildcard опционально)."
     "VLESS+TLS с деревом fallbacks: много протоколов на :443. Нужны домен + сертификат."
     "VLESS/VMess/Trojan/SS × TCP/WS/gRPC/H2 на :443. Нужен wildcard сертификат + /dev/shm."
     "Decoy — собственный сайт на том же IP. Домен + IP + сертификат + сайт согласованы."
