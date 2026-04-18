@@ -157,9 +157,30 @@ install_xray() {
     tmp_dir="$(mktemp -d)"
     trap "rm -rf '$tmp_dir'" EXIT
 
-    info "Загружаем ${zip_name}..."
-    curl -fL --progress-bar -o "${tmp_dir}/xray.zip" "$url" \
-        || die "Не удалось загрузить ${url}"
+    # Список источников: GitHub + зеркала на случай недоступности
+    local -a urls=(
+        "${RELEASES_URL}/${zip_name}"
+        "https://ghfast.top/https://github.com/XTLS/Xray-core/releases/latest/download/${zip_name}"
+        "https://mirror.ghproxy.com/https://github.com/XTLS/Xray-core/releases/latest/download/${zip_name}"
+    )
+
+    local downloaded=0
+    for src in "${urls[@]}"; do
+        info "Загружаем ${zip_name} из $(echo "$src" | cut -d/ -f3)..."
+        local attempt=0
+        while (( attempt < 3 )); do
+            if curl -fL --retry 2 --retry-delay 3 --max-time 120 \
+                    --progress-bar -o "${tmp_dir}/xray.zip" "$src" 2>/dev/null; then
+                downloaded=1
+                break 2
+            fi
+            (( attempt++ ))
+            warn "Попытка ${attempt}/3 не удалась, повтор через 5с..."
+            sleep 5
+        done
+        warn "Источник недоступен: $src"
+    done
+    (( downloaded )) || die "Не удалось загрузить ${zip_name} ни из одного источника"
 
     info "Распаковываем..."
     unzip -qo "${tmp_dir}/xray.zip" -d "${tmp_dir}/xray/" \
